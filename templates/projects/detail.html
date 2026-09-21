@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <div class="eyebrow">{{ project.organization.name }}</div>
+        <h1>{{ project.name }}</h1>
+        <p>{{ project.description|default:"No description." }}</p>
+    </div>
+    <a class="btn btn-primary" href="{% url 'project_dashboard' project.id %}">Open dashboard & actions</a>
+</div>
+
+<div class="card">
+    <h2>Project</h2>
+    <p>Use the dashboard to create and assign actions to employees in this organization.</p>
+</div>
+{% endblock %}

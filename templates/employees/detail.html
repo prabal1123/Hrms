@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+
+{% block title %}{{ employee.first_name }} {{ employee.last_name }} — Profile{% endblock %}
+
+{% block content %}
+
+<style>
+  :root {
+    --primary-color: #4f46e5;
+    --primary-hover: #4338ca;
+    --bg-surface: #ffffff;
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+    --border-color: #e5e7eb;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+    --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -4px rgba(0,0,0,0.05);
+    --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.08), 0 10px 10px -5px rgba(0,0,0,0.03);
+    --radius: 12px;
+  }
+
+  /* Keyframe Animations */
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulseGlow {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    70% { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  }
+
+  /* Staggered Entrance Animation */
+  .breadcrumb, .card, .tabs { 
+    animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; 
+  }
+  .card:nth-of-type(1) { animation-delay: 0.05s; }
+  .card:nth-of-type(2) { animation-delay: 0.1s; }
+  .card:nth-of-type(3) { animation-delay: 0.15s; }
+  .card:nth-of-type(4) { animation-delay: 0.2s; }
+
+  /* Hero Section Styling */
+  .hero-row { 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    gap: 20px; 
+    flex-wrap: wrap; 
+    padding: 8px 0; 
+    border: 0; 
+    background: none; 
+    margin-bottom: 0; 
+  }
+  .hero-left { display: flex; align-items: center; gap: 20px; }
+  .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* Avatar with subtle gradient */
+  .avatar-lg {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), #818cf8);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Interactive Elements & Cards */
+  .card {
+    background: var(--bg-surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    padding: 24px;
+    margin-bottom: 24px;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .card:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  .person-card { 
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    background: #fafafa;
+    padding: 16px;
+  }
+  .person-card:hover { 
+    transform: translateY(-4px); 
+    box-shadow: var(--shadow-md); 
+    border-color: var(--primary-color);
+    background: #ffffff;
+  }
+
+  /* Tables */
+  table tbody tr { 
+    transition: background-color 0.2s ease; 
+  }
+  table tbody tr:hover { 
+    background-color: #f8fafc; 
+  }
+
+  /* Buttons & Links */
+  .btn, .link-btn, .small { 
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); 
+  }
+  .btn:hover { 
+    transform: translateY(-2px); 
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15); 
+  }
+  .link-btn:hover, a.small:hover { 
+    opacity: 0.75; 
+  }
+
+  .row-actions { display: flex; gap: 10px; align-items: center; }
+  .link-btn { background: none; border: none; cursor: pointer; padding: 0; font: inherit; font-weight: 500; }
+  .link-btn.danger { color: #dc2626; }
+  .link-btn.success { color: #10b981; }
+
+  /* Badges */
+  .badge { 
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 500;
+    transition: transform 0.2s ease; 
+  }
+  .badge:hover { transform: scale(1.05); }
+  .badge-success { background: #d1fae5; color: #065f46; }
+  .badge-progress { background: #fef3c7; color: #92400e; }
+  .badge-muted { background: #f3f4f6; color: #374151; }
+
+  /* Tabs styling enhancement */
+  .tabs {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 24px;
+    padding-bottom: 0;
+  }
+  .tabs a {
+    padding: 10px 16px;
+    font-weight: 500;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    text-decoration: none;
+  }
+  .tabs a:hover {
+    color: var(--text-main);
+  }
+  .tabs a.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+  }
+
+  /* Breadcrumb spacing */
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  .breadcrumb a { color: var(--primary-color); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+</style>
+
+<div class="breadcrumb">
+    <a href="{% url 'employee_list' organization.id %}">{{ organization.name }}</a>
+    <span>›</span>
+    <span>Employee Profile</span>
+</div>
+
+<section class="card">
+    <div class="org-hero hero-row">
+        <div class="hero-left">
+            <div class="avatar-lg">{{ employee.first_name|first|upper }}</div>
+            <div>
+                <div class="eyebrow" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Employee profile</div>
+                <h1 style="font-size: 26px; font-weight: 700; margin: 4px 0 6px; color: var(--text-main);">{{ employee.first_name }} {{ employee.last_name }}</h1>
+                <p class="muted small" style="color: var(--text-muted);">{{ employee.employee_id }} &bull; {{ employee.email|default:"No email provided" }}</p>
+            </div>
+        </div>
+
+        <div class="hero-actions">
+            {% if membership.role != "member" %}
+                <a class="btn btn-secondary" href="{% url 'employee_update' employee.uuid %}">Edit</a>
+                {% if can_grant_login %}
+                <form method="POST" action="{% url 'employee_grant_login' employee.uuid %}" style="display:inline;" onsubmit="return confirm('Create a login account for this employee?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-secondary">Grant login</button>
+                </form>
+                {% endif %}
+                <form method="POST" action="{% url 'employee_deactivate' employee.uuid %}" style="display:inline;" onsubmit="return confirm('{% if employee.is_active %}Deactivate{% else %}Activate{% endif %} this employee?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn {% if employee.is_active %}btn-danger{% endif %}">
+                        {% if employee.is_active %}Deactivate{% else %}Activate{% endif %}
+                    </button>
+                </form>
+            {% endif %}
+            <a class="btn" href="{% url 'employee_list' organization.id %}">Back to employees</a>
+        </div>
+    </div>
+</section>
+
+<nav class="tabs">
+    <a class="active" href="#profile">Profile</a>
+    <a href="#projects">Projects</a>
+    <a href="#attendance">Attendance</a>
+    <a href="#leave">Leave</a>
+</nav>
+
+{% if can_view_salary %}
+
+    <section id="profile" class="card">
+        <div class="section-head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div>
+                <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 4px;">Profile &amp; payroll</h2>
+                <p class="muted" style="color: var(--text-muted); margin: 0;">Employee information and payroll breakdowns.</p>
+            </div>
+            {% if membership.role != "member" %}
+            <a class="btn" href="{% url 'employee_update' employee.uuid %}">Edit profile &amp; payroll</a>
+            {% endif %}
+        </div>
+
+        <div class="detail-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+            <div class="highlight" style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Salary</span><br><strong style="font-size: 18px;">₹ {{ employee.salary|floatformat:2 }}</strong></div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>PF deduction</span><br><strong>₹ {{ employee.pf|floatformat:2 }}</strong></div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>ESI deduction</span><br><strong>₹ {{ employee.esi|floatformat:2 }}</strong></div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Other deductions</span><br><strong>₹ {{ employee.other_deductions|floatformat:2 }}</strong></div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Total deductions</span><br><strong>₹ {{ employee.total_deductions|floatformat:2 }}</strong></div>
+            <div class="highlight" style="background: #eff6ff; padding: 14px; border-radius: 8px; border: 1px solid #bfdbfe;"><span>Net salary</span><br><strong style="font-size: 18px; color: #1d4ed8;">₹ {{ employee.net_salary|floatformat:2 }}</strong></div>
+        </div>
+    </section>
+
+{% else %}
+
+    <section id="profile" class="card">
+        <div class="section-head" style="margin-bottom: 20px;">
+            <div>
+                <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 4px;">Profile</h2>
+                <p class="muted" style="color: var(--text-muted); margin: 0;">Basic employee information. Salary and deductions are only visible to admins and this employee's direct supervisor.</p>
+            </div>
+        </div>
+
+        <div class="detail-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+            <div class="highlight" style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Employee ID</span><br><strong>{{ employee.employee_id }}</strong></div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Name</span><br><strong>{{ employee.first_name }} {{ employee.last_name }}</strong></div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Email</span><br><strong>{{ employee.email|default:"—" }}</strong></div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Phone</span><br><strong>{{ employee.phone|default:"—" }}</strong></div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Joining date</span><br><strong>{{ employee.date_joined|default:"—" }}</strong></div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Status</span><br><strong>{% if employee.is_active %}Active{% else %}Inactive{% endif %}</strong></div>
+        </div>
+    </section>
+
+{% endif %}
+
+<section id="projects" class="card">
+    <div class="section-head" style="margin-bottom: 20px;">
+        <div>
+            <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 4px;">Projects</h2>
+            <p class="muted" style="color: var(--text-muted); margin: 0;">Projects assigned to this employee.</p>
+        </div>
+    </div>
+
+    {% if employee.projects.all %}
+        <div class="people-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;">
+            {% for project in employee.projects.all %}
+                <a class="person-card link-card" href="{% url 'project_dashboard' project.id %}" style="display: block; text-decoration: none; color: inherit;">
+                    <div class="card-icon" style="width: 36px; height: 36px; background: #e0e7ff; color: var(--primary-color); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 12px;">{{ project.name|first|upper }}</div>
+                    <strong style="display: block; font-size: 16px; margin-bottom: 4px; color: var(--text-main);">{{ project.name }}</strong>
+                    <span style="font-size: 13px; color: var(--text-muted);">{{ project.organization.name }}</span>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty" style="text-align: center; padding: 32px 0; color: var(--text-muted);">
+            <h3 style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">No projects</h3>
+            <p class="muted">This employee is not assigned to any project.</p>
+        </div>
+    {% endif %}
+</section>
+
+<section id="attendance" class="card">
+    <div class="section-head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 4px;">Attendance</h2>
+            <p class="muted" style="color: var(--text-muted); margin: 0;">Recent attendance tracking entries.</p>
+        </div>
+
+        {% if can_manage_attendance %}
+            <a class="btn" href="{% url 'attendance_create' employee.id %}">+ Add attendance</a>
+        {% endif %}
+    </div>
+
+    {% if can_view_records %}
+        {% if attendance %}
+            <div class="table-wrap" style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--border-color); color: var(--text-muted); font-size: 13px;">
+                            <th style="padding: 10px;">Date</th>
+                            <th style="padding: 10px;">Check in</th>
+                            <th style="padding: 10px;">Check out</th>
+                            <th style="padding: 10px;">Status</th>
+                            <th style="padding: 10px;">Notes</th>
+                            {% if can_manage_attendance %}<th style="padding: 10px;"></th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for item in attendance %}
+                        <tr style="border-bottom: 1px solid var(--border-color); font-size: 14px;">
+                            <td style="padding: 12px 10px; font-weight: 500;">{{ item.date }}</td>
+                            <td style="padding: 12px 10px;">{{ item.check_in|date:"d M, h:i A"|default:"—" }}</td>
+                            <td style="padding: 12px 10px;">{{ item.check_out|date:"d M, h:i A"|default:"—" }}</td>
+                            <td style="padding: 12px 10px;"><span class="badge badge-muted">{{ item.get_status_display }}</span></td>
+                            <td style="padding: 12px 10px; color: var(--text-muted);">{{ item.notes|default:"—" }}</td>
+                            {% if can_manage_attendance %}
+                            <td style="padding: 12px 10px;" class="row-actions">
+                                <a class="small" href="{% url 'attendance_update' item.pk %}" style="color: var(--primary-color); text-decoration: none;">Edit</a>
+                                <form method="POST" action="{% url 'attendance_delete' item.pk %}" style="display:inline;" onsubmit="return confirm('Delete this attendance record?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="small link-btn danger">Delete</button>
+                                </form>
+                            </td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty" style="text-align: center; padding: 32px 0; color: var(--text-muted);">
+                <h3 style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">No attendance records</h3>
+                <p class="muted">No attendance has been recorded for this employee yet.</p>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="empty" style="text-align: center; padding: 32px 0; color: var(--text-muted);">
+            <h3 style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">Restricted</h3>
+            <p class="muted">You don't have access to this employee's attendance records.</p>
+        </div>
+    {% endif %}
+</section>
+
+<section id="leave" class="card">
+    <div class="section-head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 4px;">Leave</h2>
+            <p class="muted" style="color: var(--text-muted); margin: 0;">Recent leave requests and statuses.</p>
+        </div>
+
+        {% if membership.role != "member" %}
+            <a class="btn" href="{% url 'leave_create' employee.id %}">+ Add leave</a>
+        {% endif %}
+    </div>
+
+    {% if can_view_records %}
+        {% if leaves %}
+            <div class="table-wrap" style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--border-color); color: var(--text-muted); font-size: 13px;">
+                            <th style="padding: 10px;">Dates</th>
+                            <th style="padding: 10px;">Type</th>
+                            <th style="padding: 10px;">Status</th>
+                            <th style="padding: 10px;">Reason</th>
+                            <th style="padding: 10px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for item in leaves %}
+                        <tr style="border-bottom: 1px solid var(--border-color); font-size: 14px;">
+                            <td style="padding: 12px 10px; font-weight: 500;">{{ item.start_date }} &rarr; {{ item.end_date }}</td>
+                            <td style="padding: 12px 10px;">{{ item.get_leave_type_display }}</td>
+                            <td style="padding: 12px 10px;">
+                                <span class="badge {% if item.status == 'approved' %}badge-success{% elif item.status == 'pending' %}badge-progress{% else %}badge-muted{% endif %}">
+                                    {{ item.get_status_display }}
+                                </span>
+                            </td>
+                            <td style="padding: 12px 10px; color: var(--text-muted);">{{ item.reason|default:"—" }}</td>
+                            <td style="padding: 12px 10px;" class="row-actions">
+                                {% if can_manage_leave and item.status == "pending" %}
+                                    <form method="POST" action="{% url 'leave_review' item.pk 'approve' %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="small link-btn success">Approve</button>
+                                    </form>
+                                    <form method="POST" action="{% url 'leave_review' item.pk 'reject' %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="small link-btn danger">Reject</button>
+                                    </form>
+                                {% elif membership.role == "member" and item.employee.user_id == request.user.id and item.status == "pending" %}
+                                    <form method="POST" action="{% url 'leave_cancel' item.pk %}" style="display:inline;" onsubmit="return confirm('Cancel this leave request?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="small link-btn danger">Cancel</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty" style="text-align: center; padding: 32px 0; color: var(--text-muted);">
+                <h3 style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">No leave records</h3>
+                <p class="muted">No leave requests have been recorded yet.</p>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="empty" style="text-align: center; padding: 32px 0; color: var(--text-muted);">
+            <h3 style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">Restricted</h3>
+            <p class="muted">You don't have access to this employee's leave records.</p>
+        </div>
+    {% endif %}
+</section>
+
+{% endblock %}

@@ -1,0 +1,8 @@
+{% autoescape off %}Hello{% if user.first_name %} {{ user.first_name }}{% endif %},
+
+An account has been created for you on OrgManager. Set your password using the link below:
+
+{{ protocol }}://{{ domain }}{% url 'password_setup_confirm' uidb64=uid token=token %}
+
+This link can be used once and expires after a few days. If you weren't expecting this, you can ignore this email.
+{% endautoescape %}

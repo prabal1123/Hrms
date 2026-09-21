@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} · Dashboard{% endblock %}
+
+{% block content %}
+
+<style>
+    .member-project-page {
+        max-width: 1180px;
+        margin: 0 auto;
+    }
+
+    .member-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 18px;
+        font-size: 13px;
+        color: #7b8494;
+    }
+
+    .member-hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #ffffff 0%, #f7faf9 100%);
+        border: 1px solid #e7ebe9;
+        border-radius: 22px;
+        padding: 30px;
+        margin-bottom: 18px;
+        box-shadow: 0 8px 28px rgba(15, 23, 42, .05);
+        animation: memberFadeUp .45s ease both;
+    }
+
+    .member-hero::after {
+        content: "";
+        position: absolute;
+        width: 190px;
+        height: 190px;
+        right: -75px;
+        top: -95px;
+        border-radius: 50%;
+        background: rgba(34, 197, 94, .07);
+        pointer-events: none;
+    }
+
+    .member-hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .member-hero h1 {
+        margin: 5px 0 8px;
+        font-size: 32px;
+        line-height: 1.15;
+        letter-spacing: -.7px;
+        color: #111827;
+    }
+
+    .member-description {
+        max-width: 700px;
+        margin: 0;
+        line-height: 1.6;
+    }
+
+    .member-subnav {
+        display: flex;
+        width: fit-content;
+        gap: 6px;
+        padding: 5px;
+        background: #f5f7f6;
+        border: 1px solid #e7ebe9;
+        border-radius: 12px;
+        margin-bottom: 18px;
+    }
+
+    .member-subnav a {
+        padding: 9px 14px;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #687385;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .member-subnav a.active {
+        background: #ffffff;
+        color: #111827;
+        box-shadow: 0 2px 7px rgba(15, 23, 42, .06);
+    }
+
+    .member-stats {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .member-stat {
+        background: #ffffff;
+        border: 1px solid #e7ebe9;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 5px 18px rgba(15, 23, 42, .035);
+        animation: memberFadeUp .5s ease both;
+    }
+
+    .member-stat strong {
+        display: block;
+        font-size: 27px;
+        color: #111827;
+        margin-bottom: 3px;
+    }
+
+    .member-stat span {
+        color: #7b8494;
+        font-size: 12px;
+    }
+
+    .member-card {
+        background: #ffffff;
+        border: 1px solid #e7ebe9;
+        border-radius: 18px;
+        padding: 22px;
+        margin-bottom: 18px;
+        box-shadow: 0 6px 22px rgba(15, 23, 42, .04);
+        animation: memberFadeUp .5s ease both;
+    }
+
+    .member-section-head {
+        margin-bottom: 18px;
+    }
+
+    .member-section-head h2 {
+        margin: 0 0 5px;
+        font-size: 18px;
+        color: #111827;
+    }
+
+    .member-section-head p {
+        margin: 0;
+        font-size: 13px;
+    }
+
+    .member-people-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 11px;
+    }
+
+    .member-person {
+        padding: 15px;
+        border: 1px solid #e8ecea;
+        border-radius: 13px;
+        background: #fafcfb;
+    }
+
+    .member-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: #eef4ef;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: #526158;
+        margin-bottom: 11px;
+    }
+
+    .member-person strong {
+        display: block;
+        font-size: 14px;
+        color: #1f2937;
+        margin-bottom: 4px;
+    }
+
+    .member-person span {
+        display: block;
+        font-size: 11px;
+        color: #7b8494;
+    }
+
+    .member-table-wrap {
+        overflow-x: auto;
+    }
+
+    .member-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .member-table th {
+        text-align: left;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: #8a93a1;
+        padding: 11px 10px;
+        border-bottom: 1px solid #edf0ef;
+    }
+
+    .member-table td {
+        padding: 14px 10px;
+        border-bottom: 1px solid #f0f2f1;
+        font-size: 13px;
+        color: #374151;
+    }
+
+    .member-table tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .member-action-title {
+        color: #1f2937;
+    }
+
+    .member-action-description {
+        display: block;
+        margin-top: 4px;
+        font-size: 11px;
+    }
+
+    .member-status {
+        display: inline-flex;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: #f1f4f2;
+        color: #536159;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .member-empty {
+        text-align: center;
+        padding: 34px 20px;
+        border: 1px dashed #dfe5e1;
+        border-radius: 14px;
+        background: #fafcfb;
+    }
+
+    .member-empty-icon {
+        width: 44px;
+        height: 44px;
+        margin: 0 auto 12px;
+        border-radius: 12px;
+        background: #eef4ef;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #66756b;
+    }
+
+    .member-empty h3 {
+        margin: 0 0 6px;
+        font-size: 15px;
+    }
+
+    .member-empty p {
+        margin: 0;
+        font-size: 13px;
+    }
+
+    @keyframes memberFadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 1000px) {
+        .member-people-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 700px) {
+        .member-hero {
+            padding: 22px;
+        }
+
+        .member-hero h1 {
+            font-size: 26px;
+        }
+
+        .member-subnav {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .member-subnav a {
+            white-space: nowrap;
+        }
+
+        .member-people-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .member-card {
+            padding: 17px;
+        }
+    }
+</style>
+
+<div class="member-project-page">
+
+    <div class="member-breadcrumb">
+        <span>{{ project.organization.name }}</span>
+        <span>›</span>
+        <span>{{ project.name }}</span>
+    </div>
+
+    <section class="member-hero">
+        <div class="member-hero-content">
+            <div class="eyebrow">Project workspace</div>
+
+            <h1>{{ project.name }}</h1>
+
+            <p class="muted member-description">
+                {{ project.description|default:"Your team and assigned work for this project." }}
+            </p>
+        </div>
+    </section>
+
+    <nav class="member-subnav">
+        <a class="active"
+           href="{% url 'project_dashboard' project.id %}">
+            Overview
+        </a>
+
+        <a href="{% url 'project_team' project.id %}">
+            Team ({{ team|length }})
+        </a>
+    </nav>
+
+    <div class="member-stats">
+
+        <div class="member-stat">
+            <strong>{{ team|length }}</strong>
+            <span>Team members</span>
+        </div>
+
+        <div class="member-stat">
+            <strong>{{ actions|length }}</strong>
+            <span>My actions</span>
+        </div>
+
+    </div>
+
+    <section class="member-card">
+
+        <div class="member-section-head">
+            <h2>Project team</h2>
+            <p class="muted">
+                Employees working on this project.
+            </p>
+        </div>
+
+        {% if team %}
+
+            <div class="member-people-grid">
+
+                {% for employee in team %}
+
+                    <div class="member-person">
+
+                        <div class="member-avatar">
+                            {{ employee.first_name|first|upper }}
+                        </div>
+
+                        <strong>
+                            {{ employee.first_name }}
+                            {{ employee.last_name }}
+                        </strong>
+
+                        <span>
+                            {{ employee.employee_id }}
+                        </span>
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% else %}
+
+            <div class="member-empty">
+
+                <div class="member-empty-icon">
+                    —
+                </div>
+
+                <h3>No team members</h3>
+
+                <p class="muted">
+                    No employees have been added to this project yet.
+                </p>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
+    <section class="member-card">
+
+        <div class="member-section-head">
+            <h2>My actions</h2>
+
+            <p class="muted">
+                Work assigned to you on this project.
+            </p>
+        </div>
+
+        {% if actions %}
+
+            <div class="member-table-wrap">
+
+                <table class="member-table">
+
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Status</th>
+                            <th>Due</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                    {% for action in actions %}
+
+                        <tr>
+
+                            <td>
+                                <strong class="member-action-title">
+                                    {{ action.title }}
+                                </strong>
+
+                                {% if action.description %}
+                                    <span class="muted member-action-description">
+                                        {{ action.description|truncatechars:80 }}
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                <span class="member-status">
+                                    {{ action.get_status_display }}
+                                </span>
+                            </td>
+
+                            <td>
+                                {{ action.due_date|default:"—" }}
+                            </td>
+
+                        </tr>
+
+                    {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        {% else %}
+
+            <div class="member-empty">
+
+                <div class="member-empty-icon">
+                    ✓
+                </div>
+
+                <h3>No actions assigned</h3>
+
+                <p class="muted">
+                    You don't have any actions assigned to you on this project yet.
+                </p>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
+</div>
+
+{% endblock %}

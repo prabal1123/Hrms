@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+
+{% block title %}My Dashboard · {{ current_org.name }}{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+    <div>
+        <div class="eyebrow">{{ current_org.name }}</div>
+        <h1>Welcome, {{ employee.first_name|default:request.user.email }}</h1>
+        <p class="muted">Employee ID · {{ employee.employee_id|default:"N/A" }}</p>
+    </div>
+
+    <div class="actions">
+        <a href="{% url 'org_attendance' org_id %}" class="btn">View attendance</a>
+        <a href="{% url 'leave_list' org_id %}" class="btn">My leaves</a>
+    </div>
+</div>
+
+<div class="dash-grid">
+
+    <!-- Attendance -->
+    <div class="card">
+        <div class="card-head">
+            <div class="card-head-left">
+                <div class="card-icon">◷</div>
+                <div>
+                    <h3>Today's Attendance</h3>
+                    <small>Your attendance status for today</small>
+                </div>
+            </div>
+
+            {% if today_attendance and today_attendance.check_in and today_attendance.check_out %}
+                <span class="badge badge-success">Completed</span>
+            {% elif today_attendance and today_attendance.check_in %}
+                <span class="badge badge-progress">In progress</span>
+            {% else %}
+                <span class="badge badge-muted">Not started</span>
+            {% endif %}
+        </div>
+
+        <div class="attendance-row">
+            <div>
+                <div>
+                    {% if today_attendance and today_attendance.check_in and today_attendance.check_out %}
+                        <span class="status-dot done"></span><strong>Shift completed</strong>
+                    {% elif today_attendance and today_attendance.check_in %}
+                        <span class="status-dot success"></span><strong>You're currently checked in</strong>
+                    {% else %}
+                        <span class="status-dot"></span><strong>You haven't checked in yet</strong>
+                    {% endif %}
+                </div>
+
+                <p class="muted small">{% now "l, F j, Y" %}</p>
+
+                <div class="time-row">
+                    <div>
+                        <span>CHECK IN</span>
+                        <strong>{% if today_attendance and today_attendance.check_in %}{{ today_attendance.check_in|time:"h:i A" }}{% else %}--{% endif %}</strong>
+                    </div>
+                    <div>
+                        <span>CHECK OUT</span>
+                        <strong>{% if today_attendance and today_attendance.check_out %}{{ today_attendance.check_out|time:"h:i A" }}{% else %}--{% endif %}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <form id="employeeAttendanceForm" method="POST" action="{% url 'org_attendance' org_id %}">
+                {% csrf_token %}
+                <input type="hidden" name="latitude" id="latitude">
+                <input type="hidden" name="longitude" id="longitude">
+
+                {% if not today_attendance or not today_attendance.check_in %}
+                    <button type="button" onclick="getLocationAndSubmit()" class="btn btn-primary btn-block">
+                        Check In with Location
+                    </button>
+                {% elif not today_attendance.check_out %}
+                    <button type="button" onclick="getLocationAndSubmit()" class="btn btn-danger btn-block">
+                        Check Out with Location
+                    </button>
+                {% else %}
+                    <button type="button" class="btn btn-block" disabled>Shift Completed</button>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Assigned Work -->
+    <div class="card">
+        <div class="card-head">
+            <div class="card-head-left">
+                <div class="card-icon">✓</div>
+                <div>
+                    <h3>My Assigned Work</h3>
+                    <small>Tasks currently assigned to you</small>
+                </div>
+            </div>
+            {% if my_actions %}<span class="badge badge-muted">{{ my_actions|length }} tasks</span>{% endif %}
+        </div>
+
+        {% if my_actions %}
+            {% for action in my_actions|slice:":5" %}
+                <div class="list-row">
+                    <div>
+                        <strong>{{ action.title }}</strong>
+                        <small>
+                            {{ action.project.name }}
+                            {% if action.due_date %} · Due {{ action.due_date|date:"M j" }}{% endif %}
+                        </small>
+                    </div>
+                    <span class="badge
+                        {% if action.status == 'in_progress' %}badge-progress
+                        {% elif action.status == 'done' %}badge-success
+                        {% else %}badge-muted{% endif %}">
+                        {{ action.get_status_display }}
+                    </span>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="muted small">No work is currently assigned to you.</p>
+        {% endif %}
+    </div>
+
+    <!-- Compact row -->
+    <div class="dash-row">
+
+        <!-- Projects -->
+        <div class="card compact">
+            <div class="card-head">
+                <div class="card-head-left">
+                    <div class="card-icon">▦</div>
+                    <div><h3>My Projects</h3><small>Projects you're assigned to</small></div>
+                </div>
+            </div>
+
+            {% if projects %}
+                {% for project in projects|slice:":3" %}
+                    <div class="list-row">
+                        <a href="{% url 'project_dashboard' project.id %}"><strong>{{ project.name }}</strong></a>
+                        <a href="{% url 'project_dashboard' project.id %}" class="small">Open</a>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="muted small">No projects assigned yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- Leave -->
+        <div class="card compact">
+            <div class="card-head">
+                <div class="card-head-left">
+                    <div class="card-icon">◫</div>
+                    <div><h3>My Leave</h3><small>Your recent leave requests</small></div>
+                </div>
+            </div>
+
+            {% if leaves %}
+                {% for leave in leaves|slice:":3" %}
+                    <div class="list-row">
+                        <span>{{ leave.get_leave_type_display }}</span>
+                        <span class="badge {% if leave.status == 'approved' %}badge-success{% elif leave.status == 'pending' %}badge-progress{% else %}badge-muted{% endif %}">
+                            {{ leave.get_status_display }}
+                        </span>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="muted small">No leave requests yet.</p>
+            {% endif %}
+
+            <div class="page-head" style="margin:14px 0 0;">
+                <span></span>
+                <a href="{% url 'leave_create' employee.id %}" class="small">+ Apply for leave</a>
+            </div>
+        </div>
+
+        <!-- Profile -->
+        <div class="card compact">
+            <div class="card-head">
+                <div class="card-head-left">
+                    <div class="card-icon">♙</div>
+                    <div><h3>My Profile</h3><small>Your employee information</small></div>
+                </div>
+            </div>
+
+            <div class="detail-grid" style="grid-template-columns:1fr 1fr;">
+                <div>
+                    <span>EMPLOYEE ID</span>
+                    <strong>{{ employee.employee_id|default:"N/A" }}</strong>
+                </div>
+                <div>
+                    <span>STATUS</span>
+                    <strong>{% if employee.is_active %}Active{% else %}Inactive{% endif %}</strong>
+                </div>
+            </div>
+
+            <a href="{% url 'employee_detail' employee.uuid %}" class="small" style="display:inline-block;margin-top:12px;">
+                View full profile →
+            </a>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function getLocationAndSubmit() {
+    const form = document.getElementById("employeeAttendanceForm");
+    if (!navigator.geolocation) {
+        alert("Geolocation is not supported by this browser.");
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            document.getElementById("latitude").value = position.coords.latitude;
+            document.getElementById("longitude").value = position.coords.longitude;
+            form.submit();
+        },
+        function(error) {
+            alert("Location access is required to check in or check out. Please enable location access in your browser and try again.");
+        },
+        { timeout: 10000, enableHighAccuracy: true }
+    );
+}
+</script>
+
+{% endblock %}

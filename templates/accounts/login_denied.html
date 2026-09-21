@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Account not found{% endblock %}
+{% block auth_content %}
+<div class="card narrow">
+    <h1>Account not found</h1>
+    <p>We couldn't find an active account for what you entered. Please contact your admin to get access.</p>
+    <p class="small"><a href="{% url 'login' %}">Try again</a></p>
+    <p class="small">Starting a new organization? <a href="{% url 'register' %}">Register</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Employees{% endblock %}
+
+{% block content %}
+
+{% with org=organization|default:current_org %}
+
+<div class="page-head">
+    <div>
+        <div class="eyebrow">{{ org.name }}</div>
+        <h1>Employees</h1>
+        <p class="muted">Employee master data, payroll, attendance and leave.</p>
+    </div>
+
+    <div class="actions">
+        <a class="btn" href="{% url 'payroll' org.id %}">Payroll</a>
+        <a class="btn btn-primary" href="{% url 'employee_create' org.id %}">+ Add employee</a>
+    </div>
+</div>
+
+<div class="card">
+
+    <div class="section-head" style="margin-bottom:16px;">
+        <h2>Employee directory</h2>
+        <span class="muted small">{{ employees|length }} employee{{ employees|length|pluralize }}</span>
+    </div>
+
+    {% if employees %}
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Employee ID</th>
+                        <th>Name</th>
+                        <th>Projects</th>
+                        <th>Email</th>
+                        {% if can_view_salary_column %}
+                        <th>Salary</th>
+                        {% endif %}
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                {% for employee in employees %}
+                    <tr>
+                        <td><a class="badge" href="{% url 'employee_detail' employee.uuid %}">{{ employee.employee_id }}</a></td>
+                        <td><strong>{{ employee.first_name }} {{ employee.last_name }}</strong></td>
+                        <td>
+                            {% for p in employee.projects.all %}
+                                <a class="badge badge-muted" href="{% url 'project_dashboard' p.id %}">{{ p.name }}</a>
+                            {% empty %}
+                                <span class="muted small">Not assigned</span>
+                            {% endfor %}
+                        </td>
+                        <td class="muted">{{ employee.email|default:"—" }}</td>
+                        {% if can_view_salary_column %}
+                        <td><strong>₹ {{ employee.salary|floatformat:2 }}</strong></td>
+                        {% endif %}
+                        <td>
+                            {% if employee.is_active %}
+                                <span class="badge badge-success">Active</span>
+                            {% else %}
+                                <span class="badge badge-muted">Inactive</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    {% else %}
+
+        <div class="empty">
+            <h3>No employees yet</h3>
+            <p class="muted">Add your first employee to start managing your organization.</p>
+            <a class="btn btn-primary" href="{% url 'employee_create' org.id %}">Add employee</a>
+        </div>
+
+    {% endif %}
+
+</div>
+
+{% endwith %}
+
+{% endblock %}

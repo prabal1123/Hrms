@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}My Attendance · {{ organization.name }}{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+    <div>
+        <div class="eyebrow">{{ organization.name }}</div>
+        <h1>{% if records %}Attendance{% else %}My Attendance{% endif %}</h1>
+        <p class="muted">Track your daily check-in and check-out history.</p>
+    </div>
+</div>
+
+<div class="dash-grid">
+
+    <!-- Today -->
+    <div class="card">
+        <div class="card-head">
+            <div class="card-head-left">
+                <div class="card-icon">◷</div>
+                <h3>Today's Attendance</h3>
+            </div>
+        </div>
+
+        <div class="detail-grid" style="grid-template-columns:1fr;margin-bottom:14px;">
+            <div>
+                <span>Current status</span>
+                <strong>
+                    {% if today_attendance and today_attendance.check_in and today_attendance.check_out %}
+                        ✓ Completed
+                    {% elif today_attendance and today_attendance.check_in %}
+                        ● Checked in
+                    {% else %}
+                        ○ Not checked in
+                    {% endif %}
+                </strong>
+            </div>
+        </div>
+
+        <div class="detail-grid" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
+            <div>
+                <span>CHECK IN</span>
+                <strong>{% if today_attendance and today_attendance.check_in %}{{ today_attendance.check_in|time:"h:i A" }}{% else %}--{% endif %}</strong>
+            </div>
+            <div>
+                <span>CHECK OUT</span>
+                <strong>{% if today_attendance and today_attendance.check_out %}{{ today_attendance.check_out|time:"h:i A" }}{% else %}--{% endif %}</strong>
+            </div>
+        </div>
+
+        <form id="attendanceForm" method="POST" action="{% url 'org_attendance' org_id %}">
+            {% csrf_token %}
+            <input type="hidden" name="latitude" id="latitude">
+            <input type="hidden" name="longitude" id="longitude">
+
+            {% if not today_attendance or not today_attendance.check_in %}
+                <button type="button" onclick="getLocationAndSubmit()" class="btn btn-primary btn-block">
+                    Check In with Location
+                </button>
+            {% elif not today_attendance.check_out %}
+                <button type="button" onclick="getLocationAndSubmit()" class="btn btn-danger btn-block">
+                    Check Out with Location
+                </button>
+            {% else %}
+                <button type="button" class="btn btn-block" disabled>Attendance Completed</button>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- My History -->
+    <div class="card">
+        <div class="card-head">
+            <div class="card-head-left">
+                <div class="card-icon">▤</div>
+                <h3>My Attendance History</h3>
+            </div>
+        </div>
+
+        {% if attendance_records %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Date</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for record in attendance_records|slice:":10" %}
+                        <tr>
+                            <td>{{ record.date|date:"M j, Y" }}</td>
+                            <td>{% if record.check_in %}{{ record.check_in|time:"h:i A" }}{% else %}--{% endif %}</td>
+                            <td>{% if record.check_out %}{{ record.check_out|time:"h:i A" }}{% else %}--{% endif %}</td>
+                            <td><span class="badge badge-success">{{ record.get_status_display|default:"Present" }}</span></td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty">No attendance records yet.</div>
+        {% endif %}
+    </div>
+
+    {% if records %}
+    <!-- Company-wide Attendance (management only) -->
+    <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-head">
+            <div class="card-head-left">
+                <div class="card-icon">▦</div>
+                <h3>Company Attendance</h3>
+            </div>
+        </div>
+
+        {% if records %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Employee</th><th>Date</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for record in records %}
+                        <tr>
+                            <td>{{ record.employee.first_name }} {{ record.employee.last_name }}</td>
+                            <td>{{ record.date|date:"M j, Y" }}</td>
+                            <td>{% if record.check_in %}{{ record.check_in|time:"h:i A" }}{% else %}--{% endif %}</td>
+                            <td>{% if record.check_out %}{{ record.check_out|time:"h:i A" }}{% else %}--{% endif %}</td>
+                            <td><span class="badge badge-success">{{ record.get_status_display|default:"Present" }}</span></td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty">No attendance records yet.</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+function getLocationAndSubmit() {
+    const form = document.getElementById("attendanceForm");
+    if (!navigator.geolocation) {
+        alert("Geolocation is not supported by this browser.");
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            document.getElementById("latitude").value = position.coords.latitude;
+            document.getElementById("longitude").value = position.coords.longitude;
+            form.submit();
+        },
+        function() {
+            alert("Location access is required to check in or check out. Please enable location access and try again.");
+        },
+        { timeout: 10000, enableHighAccuracy: true }
+    );
+}
+</script>
+
+{% endblock %}

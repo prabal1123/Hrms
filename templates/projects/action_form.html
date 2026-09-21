@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Add Action{% endblock %}
+{% block content %}
+<div class="card narrow">
+    <div class="eyebrow">{{ project.name }}</div>
+    <h1>Add action</h1>
+    <p class="muted">Assign an employee from {{ project.organization.name }}.</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn btn-primary" type="submit">Save action</button>
+        <a class="btn" href="{% url 'project_dashboard' project.id %}">Cancel</a>
+    </form>
+</div>
+{% endblock %}

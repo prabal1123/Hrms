@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Apply Leave{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'leave_list' current_org.id %}">Leave</a><span>›</span><span>Apply</span></div>
+<div class="page-head">
+    <div>
+        <div class="eyebrow">{{ current_org.name }}</div>
+        <h1>Apply leave</h1>
+        <p class="muted">Submit a leave request for an employee.</p>
+    </div>
+</div>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div class="form-group">
+            <label>Employee</label>
+            <p>{{ employee.first_name }} {{ employee.last_name }} <span class="muted">({{ employee.employee_id }})</span></p>
+        </div>
+        <div class="form-group">
+            {{ form.start_date.errors }}
+            <label for="{{ form.start_date.id_for_label }}">Start Date</label>
+            {{ form.start_date }}
+        </div>
+        <div class="form-group">
+            {{ form.end_date.errors }}
+            <label for="{{ form.end_date.id_for_label }}">End Date</label>
+            {{ form.end_date }}
+        </div>
+        <div class="form-group">
+            {{ form.leave_type.errors }}
+            <label for="{{ form.leave_type.id_for_label }}">Leave Type</label>
+            {{ form.leave_type }}
+        </div>
+        <div class="form-group">
+            {{ form.status.errors }}
+            <label for="{{ form.status.id_for_label }}">Status</label>
+            {{ form.status }}
+        </div>
+        <div class="form-group">
+            {{ form.reason.errors }}
+            <label for="{{ form.reason.id_for_label }}">Reason</label>
+            {{ form.reason }}
+        </div>
+        <div class="actions">
+            <button class="btn btn-primary" type="submit">Save leave</button>
+            <a class="btn" href="{% url 'leave_list' current_org.id %}">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

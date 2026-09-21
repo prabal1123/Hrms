@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Set up your account{% endblock %}
+{% block auth_content %}
+<div class="card narrow">
+    <h1>Set up your account</h1>
+    <p>Your login for <strong>{{ pending_user.email|default:pending_user.username }}</strong> has been created, but you haven't set a password yet.</p>
+    <p>We'll email a one-time setup link to <strong>{{ masked_email }}</strong>.</p>
+    <form method="post">
+        {% csrf_token %}
+        <button class="btn btn-primary" type="submit">Send setup link</button>
+    </form>
+    <p class="small"><a href="{% url 'login' %}">Back to login</a></p>
+</div>
+{% endblock %}

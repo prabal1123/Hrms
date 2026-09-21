@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Record Attendance{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'attendance_list' current_org.id %}">Attendance</a><span>›</span><span>Record</span></div>
+<div class="page-head">
+    <div>
+        <div class="eyebrow">{{ current_org.name }}</div>
+        <h1>Record attendance</h1>
+        <p class="muted">Log daily attendance status for an employee.</p>
+    </div>
+</div>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div class="form-group">
+            <label>Employee</label>
+            <p>{{ employee.first_name }} {{ employee.last_name }} <span class="muted">({{ employee.employee_id }})</span></p>
+        </div>
+        <div class="form-group">
+            {{ form.date.errors }}
+            <label for="{{ form.date.id_for_label }}">Date</label>
+            {{ form.date }}
+        </div>
+        <div class="form-group">
+            {{ form.status.errors }}
+            <label for="{{ form.status.id_for_label }}">Status</label>
+            {{ form.status }}
+        </div>
+        <div class="form-group">
+            {{ form.notes.errors }}
+            <label for="{{ form.notes.id_for_label }}">Notes</label>
+            {{ form.notes }}
+        </div>
+        <div class="actions">
+            <button class="btn btn-primary" type="submit">Save attendance</button>
+            <a class="btn" href="{% url 'attendance_list' current_org.id %}">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

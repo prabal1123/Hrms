@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}My Leave · {{ organization.name }}{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+    <div>
+        <div class="eyebrow">{{ organization.name }}</div>
+        {% if is_member %}
+            <h1>My Leave</h1>
+            <p class="muted">View and manage your leave requests.</p>
+        {% else %}
+            <h1>Leave Management</h1>
+            <p class="muted">Review leave requests across your organization.</p>
+        {% endif %}
+    </div>
+
+    {% if is_member and employee %}
+        <a href="{% url 'leave_create' employee.id %}" class="btn btn-primary">+ Apply for Leave</a>
+    {% endif %}
+</div>
+
+<div class="card">
+
+    {% if is_member %}
+
+        {% if records %}
+            <div class="summary-strip" style="margin-bottom:20px;">
+                <div class="stat">
+                    <span class="muted small">Total Requests</span>
+                    <strong>{{ records|length }}</strong>
+                </div>
+                <div class="stat">
+                    <span class="muted small">Pending</span>
+                    <strong>{{ records|length }}</strong>
+                </div>
+                <div class="stat">
+                    <span class="muted small">Latest Request</span>
+                    <strong>{{ records.0.start_date|date:"M j" }}</strong>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Leave Type</th><th>Dates</th><th>Reason</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for leave in records %}
+                        <tr>
+                            <td><strong>{{ leave.get_leave_type_display }}</strong></td>
+                            <td>{{ leave.start_date|date:"M j, Y" }} – {{ leave.end_date|date:"M j, Y" }}</td>
+                            <td class="muted">{{ leave.reason|default:"No reason provided."|truncatechars:60 }}</td>
+                            <td>
+                                <span class="badge {% if leave.status == 'approved' %}badge-success{% elif leave.status == 'pending' %}badge-progress{% else %}badge-danger{% endif %}">
+                                    {{ leave.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty">
+                <h3>No leave requests yet</h3>
+                <p class="muted">You haven't applied for any leave yet.</p>
+                {% if employee %}
+                    <a href="{% url 'leave_create' employee.id %}" class="btn btn-primary">Apply for Leave</a>
+                {% endif %}
+            </div>
+        {% endif %}
+
+    {% else %}
+
+        {% if records %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Employee</th><th>Leave Type</th><th>Dates</th><th>Reason</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for leave in records %}
+                        <tr>
+                            <td><strong>{{ leave.employee.first_name }} {{ leave.employee.last_name }}</strong></td>
+                            <td>{{ leave.get_leave_type_display }}</td>
+                            <td>{{ leave.start_date|date:"M j, Y" }} – {{ leave.end_date|date:"M j, Y" }}</td>
+                            <td class="muted">{{ leave.reason|default:"No reason provided."|truncatechars:60 }}</td>
+                            <td>
+                                <span class="badge {% if leave.status == 'approved' %}badge-success{% elif leave.status == 'pending' %}badge-progress{% else %}badge-danger{% endif %}">
+                                    {{ leave.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty">
+                <h3>No leave requests</h3>
+                <p class="muted">There are no leave records for this organization.</p>
+            </div>
+        {% endif %}
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

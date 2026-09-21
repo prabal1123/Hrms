@@ -1,0 +1,646 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} · Dashboard{% endblock %}
+
+{% block content %}
+
+<style>
+    .project-page {
+        max-width: 1180px;
+        margin: 0 auto;
+    }
+
+    .project-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 18px;
+        font-size: 13px;
+        color: #7b8494;
+    }
+
+    .project-breadcrumb a {
+        color: #596579;
+        text-decoration: none;
+    }
+
+    .project-breadcrumb a:hover {
+        color: #111827;
+    }
+
+    .project-hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #ffffff 0%, #f7faf9 100%);
+        border: 1px solid #e7ebe9;
+        border-radius: 22px;
+        padding: 30px;
+        margin-bottom: 18px;
+        box-shadow: 0 8px 28px rgba(15, 23, 42, 0.05);
+        animation: fadeUp .45s ease both;
+    }
+
+    .project-hero::after {
+        content: "";
+        position: absolute;
+        width: 180px;
+        height: 180px;
+        right: -70px;
+        top: -90px;
+        border-radius: 50%;
+        background: rgba(34, 197, 94, 0.07);
+        pointer-events: none;
+    }
+
+    .project-hero-row {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+    }
+
+    .project-hero h1 {
+        margin: 5px 0 8px;
+        font-size: 32px;
+        line-height: 1.15;
+        letter-spacing: -0.7px;
+        color: #111827;
+    }
+
+    .project-description {
+        max-width: 700px;
+        margin: 0;
+        line-height: 1.6;
+    }
+
+    .eyebrow {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .09em;
+        color: #849080;
+    }
+
+    .project-actions {
+        display: flex;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+
+    .project-subnav {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px;
+        width: fit-content;
+        background: #f5f7f6;
+        border: 1px solid #e7ebe9;
+        border-radius: 12px;
+        margin-bottom: 18px;
+    }
+
+    .project-subnav a {
+        text-decoration: none;
+        color: #687385;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 9px 14px;
+        border-radius: 8px;
+        transition: .2s ease;
+    }
+
+    .project-subnav a:hover {
+        color: #111827;
+        background: #ffffff;
+    }
+
+    .project-subnav a.active {
+        color: #111827;
+        background: #ffffff;
+        box-shadow: 0 2px 7px rgba(15, 23, 42, .06);
+    }
+
+    .project-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .project-stat {
+        background: #ffffff;
+        border: 1px solid #e7ebe9;
+        border-radius: 16px;
+        padding: 18px 20px;
+        box-shadow: 0 5px 18px rgba(15, 23, 42, .035);
+        animation: fadeUp .5s ease both;
+    }
+
+    .project-stat:nth-child(2) { animation-delay: .04s; }
+    .project-stat:nth-child(3) { animation-delay: .08s; }
+    .project-stat:nth-child(4) { animation-delay: .12s; }
+
+    .project-stat strong {
+        display: block;
+        font-size: 25px;
+        color: #111827;
+        margin-bottom: 3px;
+    }
+
+    .project-stat span {
+        font-size: 12px;
+        color: #7b8494;
+    }
+
+    .project-card {
+        background: #ffffff;
+        border: 1px solid #e7ebe9;
+        border-radius: 18px;
+        padding: 22px;
+        margin-bottom: 18px;
+        box-shadow: 0 6px 22px rgba(15, 23, 42, .04);
+        animation: fadeUp .5s ease both;
+    }
+
+    .project-section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 18px;
+    }
+
+    .project-section-head h2 {
+        margin: 0 0 5px;
+        font-size: 18px;
+        color: #111827;
+    }
+
+    .project-section-head p {
+        margin: 0;
+        font-size: 13px;
+    }
+
+    .people-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 11px;
+    }
+
+    .person-card {
+        display: block;
+        padding: 15px;
+        border: 1px solid #e8ecea;
+        border-radius: 13px;
+        text-decoration: none;
+        background: #fafcfb;
+        transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+
+    .person-card:hover {
+        transform: translateY(-2px);
+        border-color: #d8dfda;
+        box-shadow: 0 7px 18px rgba(15, 23, 42, .06);
+    }
+
+    .person-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: #eef4ef;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: #526158;
+        margin-bottom: 11px;
+    }
+
+    .person-card strong {
+        display: block;
+        font-size: 14px;
+        color: #1f2937;
+        margin-bottom: 4px;
+    }
+
+    .person-card span {
+        display: block;
+        font-size: 11px;
+        color: #7b8494;
+        line-height: 1.45;
+        word-break: break-word;
+    }
+
+    .project-table-wrap {
+        overflow-x: auto;
+    }
+
+    .project-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .project-table th {
+        text-align: left;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: #8a93a1;
+        padding: 11px 10px;
+        border-bottom: 1px solid #edf0ef;
+        white-space: nowrap;
+    }
+
+    .project-table td {
+        padding: 14px 10px;
+        border-bottom: 1px solid #f0f2f1;
+        font-size: 13px;
+        color: #374151;
+        vertical-align: middle;
+    }
+
+    .project-table tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .action-title {
+        color: #1f2937;
+    }
+
+    .action-description {
+        display: block;
+        margin-top: 4px;
+        font-size: 11px;
+        line-height: 1.4;
+    }
+
+    .employee-link {
+        color: #4f6256;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .employee-link:hover {
+        text-decoration: underline;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: #f1f4f2;
+        color: #536159;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .empty-project {
+        text-align: center;
+        padding: 36px 20px;
+        border: 1px dashed #dfe5e1;
+        border-radius: 14px;
+        background: #fafcfb;
+    }
+
+    .empty-icon {
+        width: 44px;
+        height: 44px;
+        margin: 0 auto 12px;
+        border-radius: 12px;
+        background: #eef4ef;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #66756b;
+        font-size: 19px;
+    }
+
+    .empty-project h3 {
+        margin: 0 0 6px;
+        font-size: 15px;
+        color: #1f2937;
+    }
+
+    .empty-project p {
+        margin: 0 0 15px;
+        font-size: 13px;
+    }
+
+    @keyframes fadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 1000px) {
+        .project-stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .people-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 700px) {
+        .project-hero {
+            padding: 22px;
+        }
+
+        .project-hero-row {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .project-hero h1 {
+            font-size: 26px;
+        }
+
+        .project-actions {
+            width: 100%;
+        }
+
+        .project-actions .btn {
+            flex: 1;
+            text-align: center;
+        }
+
+        .project-subnav {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .project-subnav a {
+            white-space: nowrap;
+        }
+
+        .project-stats {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .people-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .project-card {
+            padding: 17px;
+        }
+
+        .project-section-head {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+</style>
+
+<div class="project-page">
+
+    <div class="project-breadcrumb">
+        <a href="{% url 'organization_detail' project.organization.id %}">
+            {{ project.organization.name }}
+        </a>
+        <span>›</span>
+        <span>{{ project.name }}</span>
+    </div>
+
+    <section class="project-hero">
+        <div class="project-hero-row">
+            <div>
+                <div class="eyebrow">Project workspace</div>
+                <h1>{{ project.name }}</h1>
+                <p class="muted project-description">
+                    {{ project.description|default:"Manage the project team and work here." }}
+                </p>
+            </div>
+
+            <div class="project-actions">
+                <a class="btn" href="{% url 'project_team' project.id %}">
+                    Manage team
+                </a>
+                <a class="btn btn-primary" href="{% url 'action_create' project.id %}">
+                    + Add action
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <nav class="project-subnav">
+        <a class="active" href="{% url 'project_dashboard' project.id %}">
+            Overview
+        </a>
+        <a href="{% url 'project_team' project.id %}">
+            Team ({{ team|length }})
+        </a>
+        <a href="{% url 'action_create' project.id %}">
+            Add action
+        </a>
+    </nav>
+
+    <div class="project-stats">
+        <div class="project-stat">
+            <strong>{{ team|length }}</strong>
+            <span>Team members</span>
+        </div>
+
+        <div class="project-stat">
+            <strong>{{ actions|length }}</strong>
+            <span>Total actions</span>
+        </div>
+
+        <div class="project-stat">
+            <strong>{{ actions|length }}</strong>
+            <span>Work items</span>
+        </div>
+
+        <div class="project-stat">
+            <strong>{{ project.organization.employees.count }}</strong>
+            <span>Org employees</span>
+        </div>
+    </div>
+
+    <section class="project-card">
+
+        <div class="project-section-head">
+            <div>
+                <h2>Project team</h2>
+                <p class="muted">
+                    Only these employees can be assigned to project actions.
+                </p>
+            </div>
+
+            <a class="btn" href="{% url 'project_team' project.id %}">
+                Edit team
+            </a>
+        </div>
+
+        {% if team %}
+
+            <div class="people-grid">
+
+                {% for employee in team %}
+
+                    <a class="person-card"
+                       href="{% url 'employee_detail' employee.uuid %}">
+
+                        <div class="person-avatar">
+                            {{ employee.first_name|first|upper }}
+                        </div>
+
+                        <strong>
+                            {{ employee.first_name }} {{ employee.last_name }}
+                        </strong>
+
+                        <span>
+                            {{ employee.employee_id }}
+                            ·
+                            {{ employee.email|default:"No email" }}
+                        </span>
+
+                    </a>
+
+                {% endfor %}
+
+            </div>
+
+        {% else %}
+
+            <div class="empty-project">
+
+                <div class="empty-icon">+</div>
+
+                <h3>No team members</h3>
+
+                <p class="muted">
+                    Add employees to this project before creating assigned actions.
+                </p>
+
+                <a class="btn btn-primary"
+                   href="{% url 'project_team' project.id %}">
+                    Add project team
+                </a>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
+    <section class="project-card">
+
+        <div class="project-section-head">
+            <div>
+                <h2>Actions</h2>
+                <p class="muted">
+                    Work assigned to this project's team.
+                </p>
+            </div>
+
+            <a class="btn btn-primary"
+               href="{% url 'action_create' project.id %}">
+                + Add action
+            </a>
+        </div>
+
+        {% if actions %}
+
+            <div class="project-table-wrap">
+
+                <table class="project-table">
+
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Employee</th>
+                            <th>Status</th>
+                            <th>Due</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                    {% for action in actions %}
+
+                        <tr>
+
+                            <td>
+                                <strong class="action-title">
+                                    {{ action.title }}
+                                </strong>
+
+                                {% if action.description %}
+                                    <span class="muted action-description">
+                                        {{ action.description|truncatechars:80 }}
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if action.employee %}
+
+                                    <a class="employee-link"
+                                       href="{% url 'employee_detail' action.employee.uuid %}">
+                                        {{ action.employee.first_name }}
+                                        {{ action.employee.last_name }}
+                                    </a>
+
+                                {% else %}
+                                    <span class="muted">Unassigned</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                <span class="status-pill">
+                                    {{ action.get_status_display }}
+                                </span>
+                            </td>
+
+                            <td>
+                                {{ action.due_date|default:"—" }}
+                            </td>
+
+                        </tr>
+
+                    {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        {% else %}
+
+            <div class="empty-project">
+
+                <div class="empty-icon">✓</div>
+
+                <h3>No actions yet</h3>
+
+                <p class="muted">
+                    Add an action and assign it to a project team member.
+                </p>
+
+                <a class="btn btn-primary"
+                   href="{% url 'action_create' project.id %}">
+                    Create first action
+                </a>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
+</div>
+
+{% endblock %}

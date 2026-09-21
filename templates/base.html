@@ -1,0 +1,268 @@
+{% load static %}
+
+<!doctype html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}OrgManager{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+
+<body>
+
+{% if user.is_authenticated %}
+
+<div class="app-shell">
+
+```
+<aside class="sidebar">
+
+    <div class="sidebar-brand">
+        <a href="{% url 'home' %}">
+            <span class="brand-mark">O</span>
+            <span>OrgManager</span>
+        </a>
+    </div>
+
+    <div class="workspace-picker">
+        <label>Organization</label>
+        <select onchange="if(this.value) window.location.href=this.value">
+
+            {% for membership in user_organizations %}
+                {% if membership.organization_id %}
+
+                    {% if membership.role == 'member' %}
+                        <option
+                            value="{% url 'employee_dashboard' membership.organization_id %}"
+                            {% if current_org and membership.organization_id == current_org.id %}selected{% endif %}
+                        >
+                            {{ membership.organization.name }}
+                        </option>
+                    {% else %}
+                        <option
+                            value="{% url 'organization_detail' membership.organization_id %}"
+                            {% if current_org and membership.organization_id == current_org.id %}selected{% endif %}
+                        >
+                            {{ membership.organization.name }}
+                        </option>
+                    {% endif %}
+
+                {% endif %}
+            {% empty %}
+                <option>No organization</option>
+            {% endfor %}
+
+        </select>
+    </div>
+
+    <nav class="side-nav" aria-label="Workspace navigation">
+
+        <div class="nav-label">Workspace</div>
+
+        {% if current_org and current_org.id %}
+
+            {% if current_membership and current_membership.role != 'member' %}
+
+                <a
+                    class="nav-item {% if request.resolver_match.url_name == 'organization_detail' %}active{% endif %}"
+                    href="{% url 'organization_detail' current_org.id %}"
+                >
+                    <span>⌂</span> Overview
+                </a>
+
+            {% endif %}
+
+            <a
+                class="nav-item {% if request.resolver_match.url_name == 'employee_dashboard' %}active{% endif %}"
+                href="{% url 'employee_dashboard' current_org.id %}"
+            >
+                <span>📊</span> My Dashboard
+            </a>
+
+            <a
+                class="nav-item {% if request.resolver_match.url_name == 'organization_projects' or request.resolver_match.url_name == 'project_dashboard' or request.resolver_match.url_name == 'project_team' or request.resolver_match.url_name == 'action_create' or request.resolver_match.url_name == 'project_detail' %}active{% endif %}"
+                href="{% url 'organization_projects' current_org.id %}"
+            >
+                <span>▦</span> Projects
+            </a>
+
+        {% else %}
+
+            <a class="nav-item" href="{% url 'organization_create' %}">
+                <span>⌂</span> Create Organization
+            </a>
+
+        {% endif %}
+
+
+        {% if current_project and current_project.id %}
+
+            <div class="project-context">
+
+                <div class="project-context-label">Current project</div>
+
+                <div class="project-context-name">
+                    {{ current_project.name }}
+                </div>
+
+                <a href="{% url 'project_dashboard' current_project.id %}">
+                    Dashboard
+                </a>
+
+                {% if current_membership and current_membership.role != 'member' %}
+
+                    <a href="{% url 'project_team' current_project.id %}">
+                        Team
+                    </a>
+
+                    <a href="{% url 'action_create' current_project.id %}">
+                        Add action
+                    </a>
+
+                {% endif %}
+
+            </div>
+
+        {% endif %}
+
+
+        {% if current_org and current_org.id %}
+
+            <div class="nav-label">People &amp; Records</div>
+
+            {% if current_membership and current_membership.role != 'member' %}
+
+                <a
+                    class="nav-item {% if request.resolver_match.url_name == 'employee_list' or request.resolver_match.url_name == 'employee_detail' or request.resolver_match.url_name == 'employee_create' %}active{% endif %}"
+                    href="{% url 'employee_list' current_org.id %}"
+                >
+                    <span>♙</span> Employees
+                </a>
+
+            {% endif %}
+
+
+            <a
+                class="nav-item {% if request.resolver_match.url_name == 'attendance_list' or request.resolver_match.url_name == 'org_attendance' or request.resolver_match.url_name == 'attendance_create' %}active{% endif %}"
+                href="{% if current_membership and current_membership.role == 'member' %}{% url 'org_attendance' current_org.id %}{% else %}{% url 'attendance_list' current_org.id %}{% endif %}"
+            >
+                <span>◷</span> Attendance
+            </a>
+
+
+            <a
+                class="nav-item {% if request.resolver_match.url_name == 'leave_list' or request.resolver_match.url_name == 'leave_create' %}active{% endif %}"
+                href="{% url 'leave_list' current_org.id %}"
+            >
+                <span>◫</span> Leave
+            </a>
+
+
+            {% if current_membership and current_membership.role != 'member' %}
+
+                <a
+                    class="nav-item {% if request.resolver_match.url_name == 'payroll' %}active{% endif %}"
+                    href="{% url 'payroll' current_org.id %}"
+                >
+                    <span>₹</span> Payroll
+                </a>
+
+            {% endif %}
+
+        {% endif %}
+
+    </nav>
+
+
+    <div class="sidebar-bottom">
+
+        <div class="user-mini">
+
+            <span class="avatar">
+                {{ user.username|first|upper }}
+            </span>
+
+            <div>
+                <strong>{{ user.username }}</strong>
+                <small>
+                    {{ current_org.name|default:"No organization" }}
+                </small>
+            </div>
+
+        </div>
+
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="logout-link" type="submit">
+                ↪ Sign out
+            </button>
+        </form>
+
+    </div>
+
+</aside>
+
+
+<div class="main-area">
+
+    <header class="topbar">
+
+        <div class="mobile-brand">
+            OrgManager
+        </div>
+
+        <div class="topbar-spacer"></div>
+
+        {% if current_org and current_org.id and current_membership and current_membership.role != 'member' %}
+
+            <a
+                class="topbar-link"
+                href="{% url 'employee_create' current_org.id %}"
+            >
+                + Add employee
+            </a>
+
+        {% endif %}
+
+        <span class="topbar-user">
+            {{ user.username }}
+        </span>
+
+    </header>
+
+
+    <main class="content-area">
+
+        {% for message in messages %}
+            <div class="alert">{{ message }}</div>
+        {% endfor %}
+
+        {% block content %}{% endblock %}
+
+    </main>
+
+</div>
+```
+
+</div>
+
+{% else %}
+
+<main class="public-container">
+
+```
+{% for message in messages %}
+    <div class="alert">{{ message }}</div>
+{% endfor %}
+
+{% block auth_content %}{% endblock %}
+```
+
+</main>
+
+{% endif %}
+
+</body>
+</html>

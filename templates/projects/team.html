@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · Team{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'organization_detail' project.organization.id %}">{{ project.organization.name }}</a><span>›</span><a href="{% url 'project_dashboard' project.id %}">{{ project.name }}</a><span>›</span><span>Team</span></div>
+<div class="page-head">
+    <div>
+        <div class="eyebrow">Project workspace</div>
+        <h1>{{ project.name }} Team</h1>
+        <p class="muted">Manage employees assigned to this project.</p>
+    </div>
+    <div class="actions">
+        <a class="btn" href="{% url 'project_dashboard' project.id %}">Back to dashboard</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="section-head">
+        <h2>Assigned Members</h2>
+    </div>
+    {% if team_members %}
+    <div class="people-grid">
+        {% for employee in team_members %}
+        <a class="person-card" href="{% url 'employee_detail' employee.uuid %}">
+            <strong>{{ employee.first_name }} {{ employee.last_name }}</strong>
+            <span>{{ employee.employee_id }} · {{ employee.email|default:"No email" }}</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">No team members assigned to this project yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}New Project{% endblock %}
+{% block content %}
+<div class="card narrow">
+    <div class="eyebrow">{{ organization.name }}</div>
+    <h1>Create project</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn btn-primary" type="submit">Create project</button>
+        <a class="btn" href="{% url 'organization_detail' organization.id %}">Cancel</a>
+    </form>
+</div>
+{% endblock %}

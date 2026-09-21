@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Add Employee{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="eyebrow">{{ organization.name }}</div>
+    <h1>Add employee</h1>
+    <p class="muted">Enter employee master and payroll information.</p>
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-grid">{{ form.as_p }}</div>
+        <button class="btn btn-primary" type="submit">Save employee</button>
+        <a class="btn" href="{% url 'employee_list' organization.id %}">Cancel</a>
+    </form>
+</div>
+{% endblock %}
