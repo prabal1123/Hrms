@@ -3,425 +3,665 @@
 {% block title %}{{ employee.first_name }} {{ employee.last_name }} — Profile{% endblock %}
 
 {% block content %}
-
 <style>
   :root {
-    --primary-color: #4f46e5;
+    --primary: #4f46e5;
     --primary-hover: #4338ca;
-    --bg-surface: #ffffff;
-    --text-main: #1f2937;
-    --text-muted: #6b7280;
-    --border-color: #e5e7eb;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
-    --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -4px rgba(0,0,0,0.05);
-    --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.08), 0 10px 10px -5px rgba(0,0,0,0.03);
-    --radius: 12px;
+    --primary-light: #eef2ff;
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --danger: #ef4444;
+    --danger-light: #fef2f2;
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --radius-lg: 16px;
+    --radius-md: 10px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+    --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.04), 0 4px 6px -4px rgba(0,0,0,0.02);
   }
 
-  /* Keyframe Animations */
-  @keyframes fadeSlideUp {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Animations */
+  @keyframes slideUpFade {
     from { opacity: 0; transform: translateY(16px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-
-  @keyframes pulseGlow {
-    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-    70% { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  @keyframes pulseAvatar {
+    0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(79, 70, 229, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
   }
 
-  /* Staggered Entrance Animation */
-  .breadcrumb, .card, .tabs { 
-    animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; 
+  .animate-block {
+    animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
   }
-  .card:nth-of-type(1) { animation-delay: 0.05s; }
-  .card:nth-of-type(2) { animation-delay: 0.1s; }
-  .card:nth-of-type(3) { animation-delay: 0.15s; }
-  .card:nth-of-type(4) { animation-delay: 0.2s; }
+  .delay-1 { animation-delay: 0.05s; }
+  .delay-2 { animation-delay: 0.1s; }
+  .delay-3 { animation-delay: 0.15s; }
+  .delay-4 { animation-delay: 0.2s; }
 
-  /* Hero Section Styling */
-  .hero-row { 
-    display: flex; 
-    align-items: center; 
-    justify-content: space-between; 
-    gap: 20px; 
-    flex-wrap: wrap; 
-    padding: 8px 0; 
-    border: 0; 
-    background: none; 
-    margin-bottom: 0; 
-  }
-  .hero-left { display: flex; align-items: center; gap: 20px; }
-  .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-
-  /* Avatar with subtle gradient */
-  .avatar-lg {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-color), #818cf8);
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    font-weight: 600;
-    box-shadow: var(--shadow-sm);
-  }
-
-  /* Interactive Elements & Cards */
-  .card {
-    background: var(--bg-surface);
-    border-radius: var(--radius);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
-    padding: 24px;
-    margin-bottom: 24px;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
-  }
-  .card:hover {
-    box-shadow: var(--shadow-md);
-  }
-
-  .person-card { 
-    border-radius: var(--radius);
-    border: 1px solid var(--border-color);
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    background: #fafafa;
-    padding: 16px;
-  }
-  .person-card:hover { 
-    transform: translateY(-4px); 
-    box-shadow: var(--shadow-md); 
-    border-color: var(--primary-color);
-    background: #ffffff;
-  }
-
-  /* Tables */
-  table tbody tr { 
-    transition: background-color 0.2s ease; 
-  }
-  table tbody tr:hover { 
-    background-color: #f8fafc; 
-  }
-
-  /* Buttons & Links */
-  .btn, .link-btn, .small { 
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); 
-  }
-  .btn:hover { 
-    transform: translateY(-2px); 
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15); 
-  }
-  .link-btn:hover, a.small:hover { 
-    opacity: 0.75; 
-  }
-
-  .row-actions { display: flex; gap: 10px; align-items: center; }
-  .link-btn { background: none; border: none; cursor: pointer; padding: 0; font: inherit; font-weight: 500; }
-  .link-btn.danger { color: #dc2626; }
-  .link-btn.success { color: #10b981; }
-
-  /* Badges */
-  .badge { 
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 10px;
-    border-radius: 9999px;
-    font-size: 12px;
-    font-weight: 500;
-    transition: transform 0.2s ease; 
-  }
-  .badge:hover { transform: scale(1.05); }
-  .badge-success { background: #d1fae5; color: #065f46; }
-  .badge-progress { background: #fef3c7; color: #92400e; }
-  .badge-muted { background: #f3f4f6; color: #374151; }
-
-  /* Tabs styling enhancement */
-  .tabs {
-    display: flex;
-    gap: 8px;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 24px;
-    padding-bottom: 0;
-  }
-  .tabs a {
-    padding: 10px 16px;
-    font-weight: 500;
-    color: var(--text-muted);
-    border-bottom: 2px solid transparent;
-    transition: all 0.2s ease;
-    text-decoration: none;
-  }
-  .tabs a:hover {
-    color: var(--text-main);
-  }
-  .tabs a.active {
-    color: var(--primary-color);
-    border-bottom-color: var(--primary-color);
-  }
-
-  /* Breadcrumb spacing */
+  /* Breadcrumb */
   .breadcrumb {
     display: flex;
     align-items: center;
     gap: 8px;
     color: var(--text-muted);
-    font-size: 14px;
-    margin-bottom: 16px;
+    font-size: 0.875rem;
+    margin-bottom: 24px;
+    font-weight: 500;
   }
-  .breadcrumb a { color: var(--primary-color); text-decoration: none; }
-  .breadcrumb a:hover { text-decoration: underline; }
+  .breadcrumb a { color: var(--primary); text-decoration: none; transition: color 0.2s; }
+  .breadcrumb a:hover { color: var(--primary-hover); }
+
+  /* Two-Column Layout */
+  .profile-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  @media (min-width: 1024px) {
+    .profile-layout {
+      grid-template-columns: 320px 1fr;
+      align-items: start;
+    }
+  }
+
+  /* Sticky Sidebar Card */
+  .sidebar-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 32px 24px;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+    position: sticky;
+    top: 24px;
+  }
+  
+  .avatar-xl {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), #818cf8);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0 auto 16px;
+    animation: pulseAvatar 2.5s infinite;
+  }
+
+  .sidebar-card h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .sidebar-card p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin: 0 0 24px;
+  }
+  
+  .sidebar-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Content Cards */
+  .content-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .content-card:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+  }
+  .card-header h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0 0 4px;
+  }
+  .card-header p {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    margin: 0;
+  }
+
+  /* Data Grid */
+  .data-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+  }
+  .data-box {
+    background: var(--surface-alt);
+    border: 1px solid transparent;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    transition: background-color 0.2s;
+  }
+  .data-box:hover {
+    background: #f1f5f9;
+  }
+  .data-box span {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .data-box strong {
+    font-size: 1rem;
+    color: var(--text-main);
+    word-break: break-word;
+  }
+  .data-box.highlight {
+    background: var(--primary-light);
+    border-color: #c7d2fe;
+  }
+  .data-box.highlight strong {
+    color: var(--primary);
+    font-size: 1.25rem;
+  }
+
+  /* Projects Grid */
+  .project-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: var(--surface-alt);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+  }
+  .project-item:hover {
+    transform: translateY(-2px);
+    background: var(--surface);
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08);
+  }
+  .project-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--primary-light);
+    color: var(--primary);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+  .project-item strong {
+    display: block;
+    color: var(--text-main);
+    font-size: 1rem;
+    margin-bottom: 2px;
+  }
+  .project-item span {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+
+  /* Tables */
+  .table-container {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+  }
+  th {
+    background: var(--surface-alt);
+    padding: 14px 16px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 16px;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    border-bottom: 1px solid var(--border);
+  }
+  tr:last-child td {
+    border-bottom: none;
+  }
+  tbody tr {
+    transition: background-color 0.2s;
+  }
+  tbody tr:hover {
+    background-color: var(--surface-alt);
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  .badge-neutral { background: #f1f5f9; color: #475569; }
+  .badge-success { background: var(--success-light); color: #047857; }
+  .badge-warning { background: #fef3c7; color: #b45309; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-main);
+    transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .btn-sm {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    width: auto;
+  }
+  .btn:hover {
+    background: var(--surface-alt);
+    border-color: #cbd5e1;
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+  }
+  .btn-primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+  }
+  .btn-danger {
+    background: var(--danger-light);
+    color: var(--danger);
+    border-color: transparent;
+  }
+  .btn-danger:hover {
+    background: #fee2e2;
+  }
+  
+  .link-btn {
+    background: none; border: none; padding: 0; font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+  }
+  .link-btn:hover { opacity: 0.7; }
+  .text-danger { color: var(--danger); }
+  .text-success { color: var(--success); }
+  .text-primary { color: var(--primary); text-decoration: none; }
+
+  /* Sticky Tabs */
+  .page-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    border-radius: var(--radius-lg);
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+    position: sticky;
+    top: 24px;
+    z-index: 10;
+    box-shadow: var(--shadow-sm);
+  }
+  .page-tabs a {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.2s;
+  }
+  .page-tabs a:hover, .page-tabs a:focus {
+    background: var(--surface-alt);
+    color: var(--text-main);
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    background: var(--surface-alt);
+    border-radius: var(--radius-md);
+    border: 1px dashed #cbd5e1;
+  }
+  .empty-state h3 { font-size: 1rem; color: var(--text-main); margin: 0 0 4px; }
+  .empty-state p { font-size: 0.9rem; color: var(--text-muted); margin: 0; }
 </style>
 
-<div class="breadcrumb">
+<div class="breadcrumb animate-block">
     <a href="{% url 'employee_list' organization.id %}">{{ organization.name }}</a>
     <span>›</span>
-    <span>Employee Profile</span>
+    <span>{{ employee.first_name }} {{ employee.last_name }}</span>
 </div>
 
-<section class="card">
-    <div class="org-hero hero-row">
-        <div class="hero-left">
-            <div class="avatar-lg">{{ employee.first_name|first|upper }}</div>
-            <div>
-                <div class="eyebrow" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Employee profile</div>
-                <h1 style="font-size: 26px; font-weight: 700; margin: 4px 0 6px; color: var(--text-main);">{{ employee.first_name }} {{ employee.last_name }}</h1>
-                <p class="muted small" style="color: var(--text-muted);">{{ employee.employee_id }} &bull; {{ employee.email|default:"No email provided" }}</p>
+<div class="profile-layout">
+    <!-- LEFT SIDEBAR -->
+    <aside class="animate-block delay-1">
+        <div class="sidebar-card">
+            <div class="avatar-xl">{{ employee.first_name|first|upper }}</div>
+            <h1>{{ employee.first_name }} {{ employee.last_name }}</h1>
+            <p>{{ employee.employee_id }} • {{ employee.email|default:"No email provided" }}</p>
+            
+            <div style="margin-bottom: 24px;">
+                <span class="badge {% if employee.is_active %}badge-success{% else %}badge-neutral{% endif %}">
+                    {% if employee.is_active %}Active Employee{% else %}Inactive Employee{% endif %}
+                </span>
             </div>
-        </div>
 
-        <div class="hero-actions">
-            {% if membership.role != "member" %}
-                <a class="btn btn-secondary" href="{% url 'employee_update' employee.uuid %}">Edit</a>
-                {% if can_grant_login %}
-                <form method="POST" action="{% url 'employee_grant_login' employee.uuid %}" style="display:inline;" onsubmit="return confirm('Create a login account for this employee?');">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-secondary">Grant login</button>
-                </form>
+            <div class="sidebar-actions">
+                {% if membership.role != "member" %}
+                    <a class="btn btn-primary" href="{% url 'employee_update' employee.uuid %}">Edit Profile</a>
+                    
+                    {% if can_grant_login %}
+                    <form method="POST" action="{% url 'employee_grant_login' employee.uuid %}" onsubmit="return confirm('Create a login account for this employee?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn">Grant Login Access</button>
+                    </form>
+                    {% endif %}
+                    
+                    <form method="POST" action="{% url 'employee_deactivate' employee.uuid %}" onsubmit="return confirm('{% if employee.is_active %}Deactivate{% else %}Activate{% endif %} this employee?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn {% if employee.is_active %}btn-danger{% endif %}">
+                            {% if employee.is_active %}Deactivate Account{% else %}Activate Account{% endif %}
+                        </button>
+                    </form>
                 {% endif %}
-                <form method="POST" action="{% url 'employee_deactivate' employee.uuid %}" style="display:inline;" onsubmit="return confirm('{% if employee.is_active %}Deactivate{% else %}Activate{% endif %} this employee?');">
-                    {% csrf_token %}
-                    <button type="submit" class="btn {% if employee.is_active %}btn-danger{% endif %}">
-                        {% if employee.is_active %}Deactivate{% else %}Activate{% endif %}
-                    </button>
-                </form>
-            {% endif %}
-            <a class="btn" href="{% url 'employee_list' organization.id %}">Back to employees</a>
-        </div>
-    </div>
-</section>
-
-<nav class="tabs">
-    <a class="active" href="#profile">Profile</a>
-    <a href="#projects">Projects</a>
-    <a href="#attendance">Attendance</a>
-    <a href="#leave">Leave</a>
-</nav>
-
-{% if can_view_salary %}
-
-    <section id="profile" class="card">
-        <div class="section-head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <div>
-                <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 4px;">Profile &amp; payroll</h2>
-                <p class="muted" style="color: var(--text-muted); margin: 0;">Employee information and payroll breakdowns.</p>
-            </div>
-            {% if membership.role != "member" %}
-            <a class="btn" href="{% url 'employee_update' employee.uuid %}">Edit profile &amp; payroll</a>
-            {% endif %}
-        </div>
-
-        <div class="detail-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-            <div class="highlight" style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Salary</span><br><strong style="font-size: 18px;">₹ {{ employee.salary|floatformat:2 }}</strong></div>
-            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>PF deduction</span><br><strong>₹ {{ employee.pf|floatformat:2 }}</strong></div>
-            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>ESI deduction</span><br><strong>₹ {{ employee.esi|floatformat:2 }}</strong></div>
-            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Other deductions</span><br><strong>₹ {{ employee.other_deductions|floatformat:2 }}</strong></div>
-            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Total deductions</span><br><strong>₹ {{ employee.total_deductions|floatformat:2 }}</strong></div>
-            <div class="highlight" style="background: #eff6ff; padding: 14px; border-radius: 8px; border: 1px solid #bfdbfe;"><span>Net salary</span><br><strong style="font-size: 18px; color: #1d4ed8;">₹ {{ employee.net_salary|floatformat:2 }}</strong></div>
-        </div>
-    </section>
-
-{% else %}
-
-    <section id="profile" class="card">
-        <div class="section-head" style="margin-bottom: 20px;">
-            <div>
-                <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 4px;">Profile</h2>
-                <p class="muted" style="color: var(--text-muted); margin: 0;">Basic employee information. Salary and deductions are only visible to admins and this employee's direct supervisor.</p>
             </div>
         </div>
+    </aside>
 
-        <div class="detail-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-            <div class="highlight" style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Employee ID</span><br><strong>{{ employee.employee_id }}</strong></div>
-            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Name</span><br><strong>{{ employee.first_name }} {{ employee.last_name }}</strong></div>
-            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Email</span><br><strong>{{ employee.email|default:"—" }}</strong></div>
-            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Phone</span><br><strong>{{ employee.phone|default:"—" }}</strong></div>
-            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Joining date</span><br><strong>{{ employee.date_joined|default:"—" }}</strong></div>
-            <div style="background: #f8fafc; padding: 14px; border-radius: 8px;"><span>Status</span><br><strong>{% if employee.is_active %}Active{% else %}Inactive{% endif %}</strong></div>
-        </div>
-    </section>
+    <!-- RIGHT CONTENT AREA -->
+    <main>
+        <nav class="page-tabs animate-block delay-1">
+            <a href="#profile">Profile</a>
+            {% if can_view_sensitive %}<a href="#identity">Identity</a>{% endif %}
+            <a href="#projects">Projects</a>
+            <a href="#attendance">Attendance</a>
+            <a href="#leave">Leave</a>
+        </nav>
 
-{% endif %}
+        <!-- Profile & Payroll -->
+        <section id="profile" class="content-card animate-block delay-2">
+            <div class="card-header">
+                <div>
+                    <h2>Profile & Payroll</h2>
+                    <p>{% if can_view_salary %}Financial breakdown and basic details.{% else %}Basic employee information.{% endif %}</p>
+                </div>
+            </div>
 
-<section id="projects" class="card">
-    <div class="section-head" style="margin-bottom: 20px;">
-        <div>
-            <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 4px;">Projects</h2>
-            <p class="muted" style="color: var(--text-muted); margin: 0;">Projects assigned to this employee.</p>
-        </div>
-    </div>
+            <div class="data-grid">
+                {% if can_view_salary %}
+                    <div class="data-box highlight">
+                        <span>Net Salary</span>
+                        <strong>₹ {{ employee.net_salary|floatformat:2 }}</strong>
+                    </div>
+                    <div class="data-box">
+                        <span>Base Salary</span>
+                        <strong>₹ {{ employee.salary|floatformat:2 }}</strong>
+                    </div>
+                    <div class="data-box">
+                        <span>PF Deduction</span>
+                        <strong>₹ {{ employee.pf|floatformat:2 }}</strong>
+                    </div>
+                    <div class="data-box">
+                        <span>ESI Deduction</span>
+                        <strong>₹ {{ employee.esi|floatformat:2 }}</strong>
+                    </div>
+                    <div class="data-box">
+                        <span>Other Deductions</span>
+                        <strong>₹ {{ employee.other_deductions|floatformat:2 }}</strong>
+                    </div>
+                {% endif %}
+                <div class="data-box">
+                    <span>Designation</span>
+                    <strong>{{ employee.designation|default:"—" }}</strong>
+                </div>
+                <div class="data-box">
+                    <span>Phone Number</span>
+                    <strong>{{ employee.phone|default:"—" }}</strong>
+                </div>
+                <div class="data-box">
+                    <span>Joining Date</span>
+                    <strong>{{ employee.date_joined|default:"—" }}</strong>
+                </div>
+            </div>
+        </section>
 
-    {% if employee.projects.all %}
-        <div class="people-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;">
-            {% for project in employee.projects.all %}
-                <a class="person-card link-card" href="{% url 'project_dashboard' project.id %}" style="display: block; text-decoration: none; color: inherit;">
-                    <div class="card-icon" style="width: 36px; height: 36px; background: #e0e7ff; color: var(--primary-color); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 12px;">{{ project.name|first|upper }}</div>
-                    <strong style="display: block; font-size: 16px; margin-bottom: 4px; color: var(--text-main);">{{ project.name }}</strong>
-                    <span style="font-size: 13px; color: var(--text-muted);">{{ project.organization.name }}</span>
-                </a>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="empty" style="text-align: center; padding: 32px 0; color: var(--text-muted);">
-            <h3 style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">No projects</h3>
-            <p class="muted">This employee is not assigned to any project.</p>
-        </div>
-    {% endif %}
-</section>
+        <!-- Identity & Bank Details -->
+        {% if can_view_sensitive %}
+        <section id="identity" class="content-card animate-block delay-2">
+            <div class="card-header">
+                <div>
+                    <h2>Identity & Bank Details</h2>
+                    <p>Secure information visible only to admins and this employee.</p>
+                </div>
+            </div>
 
-<section id="attendance" class="card">
-    <div class="section-head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <div>
-            <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 4px;">Attendance</h2>
-            <p class="muted" style="color: var(--text-muted); margin: 0;">Recent attendance tracking entries.</p>
-        </div>
-
-        {% if can_manage_attendance %}
-            <a class="btn" href="{% url 'attendance_create' employee.id %}">+ Add attendance</a>
+            <div class="data-grid">
+                <div class="data-box"><span>Aadhar No.</span><strong>{{ employee.aadhar_no|default:"—" }}</strong></div>
+                <div class="data-box"><span>PAN No.</span><strong>{{ employee.pan_no|default:"—" }}</strong></div>
+                <div class="data-box"><span>UAN No.</span><strong>{{ employee.uan_no|default:"—" }}</strong></div>
+                <div class="data-box"><span>ESIC No.</span><strong>{{ employee.esic_no|default:"—" }}</strong></div>
+                <div class="data-box"><span>Bank Name</span><strong>{{ employee.bank_name|default:"—" }}</strong></div>
+                <div class="data-box"><span>Account No.</span><strong>{{ employee.bank_account_no|default:"—" }}</strong></div>
+                <div class="data-box"><span>IFSC Code</span><strong>{{ employee.ifsc_no|default:"—" }}</strong></div>
+            </div>
+            <div class="data-box" style="margin-top: 16px;">
+                <span>Home Address</span>
+                <strong style="white-space: pre-line;">{{ employee.address|default:"—" }}</strong>
+            </div>
+        </section>
         {% endif %}
-    </div>
 
-    {% if can_view_records %}
-        {% if attendance %}
-            <div class="table-wrap" style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                    <thead>
-                        <tr style="border-bottom: 2px solid var(--border-color); color: var(--text-muted); font-size: 13px;">
-                            <th style="padding: 10px;">Date</th>
-                            <th style="padding: 10px;">Check in</th>
-                            <th style="padding: 10px;">Check out</th>
-                            <th style="padding: 10px;">Status</th>
-                            <th style="padding: 10px;">Notes</th>
-                            {% if can_manage_attendance %}<th style="padding: 10px;"></th>{% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                    {% for item in attendance %}
-                        <tr style="border-bottom: 1px solid var(--border-color); font-size: 14px;">
-                            <td style="padding: 12px 10px; font-weight: 500;">{{ item.date }}</td>
-                            <td style="padding: 12px 10px;">{{ item.check_in|date:"d M, h:i A"|default:"—" }}</td>
-                            <td style="padding: 12px 10px;">{{ item.check_out|date:"d M, h:i A"|default:"—" }}</td>
-                            <td style="padding: 12px 10px;"><span class="badge badge-muted">{{ item.get_status_display }}</span></td>
-                            <td style="padding: 12px 10px; color: var(--text-muted);">{{ item.notes|default:"—" }}</td>
-                            {% if can_manage_attendance %}
-                            <td style="padding: 12px 10px;" class="row-actions">
-                                <a class="small" href="{% url 'attendance_update' item.pk %}" style="color: var(--primary-color); text-decoration: none;">Edit</a>
-                                <form method="POST" action="{% url 'attendance_delete' item.pk %}" style="display:inline;" onsubmit="return confirm('Delete this attendance record?');">
-                                    {% csrf_token %}
-                                    <button type="submit" class="small link-btn danger">Delete</button>
-                                </form>
-                            </td>
-                            {% endif %}
-                        </tr>
+        <!-- Projects -->
+        <section id="projects" class="content-card animate-block delay-3">
+            <div class="card-header">
+                <div>
+                    <h2>Assigned Projects</h2>
+                    <p>Workspaces this employee is actively involved in.</p>
+                </div>
+            </div>
+
+            {% if employee.projects.all %}
+                <div class="data-grid">
+                    {% for project in employee.projects.all %}
+                        <a href="{% url 'project_dashboard' project.id %}" class="project-item">
+                            <div class="project-icon">{{ project.name|first|upper }}</div>
+                            <div>
+                                <strong>{{ project.name }}</strong>
+                                <span>{{ project.organization.name }}</span>
+                            </div>
+                        </a>
                     {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="empty" style="text-align: center; padding: 32px 0; color: var(--text-muted);">
-                <h3 style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">No attendance records</h3>
-                <p class="muted">No attendance has been recorded for this employee yet.</p>
-            </div>
-        {% endif %}
-    {% else %}
-        <div class="empty" style="text-align: center; padding: 32px 0; color: var(--text-muted);">
-            <h3 style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">Restricted</h3>
-            <p class="muted">You don't have access to this employee's attendance records.</p>
-        </div>
-    {% endif %}
-</section>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <h3>No Active Projects</h3>
+                    <p>This employee hasn't been assigned to any projects yet.</p>
+                </div>
+            {% endif %}
+        </section>
 
-<section id="leave" class="card">
-    <div class="section-head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <div>
-            <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 4px;">Leave</h2>
-            <p class="muted" style="color: var(--text-muted); margin: 0;">Recent leave requests and statuses.</p>
-        </div>
-
-        {% if membership.role != "member" %}
-            <a class="btn" href="{% url 'leave_create' employee.id %}">+ Add leave</a>
-        {% endif %}
-    </div>
-
-    {% if can_view_records %}
-        {% if leaves %}
-            <div class="table-wrap" style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                    <thead>
-                        <tr style="border-bottom: 2px solid var(--border-color); color: var(--text-muted); font-size: 13px;">
-                            <th style="padding: 10px;">Dates</th>
-                            <th style="padding: 10px;">Type</th>
-                            <th style="padding: 10px;">Status</th>
-                            <th style="padding: 10px;">Reason</th>
-                            <th style="padding: 10px;"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    {% for item in leaves %}
-                        <tr style="border-bottom: 1px solid var(--border-color); font-size: 14px;">
-                            <td style="padding: 12px 10px; font-weight: 500;">{{ item.start_date }} &rarr; {{ item.end_date }}</td>
-                            <td style="padding: 12px 10px;">{{ item.get_leave_type_display }}</td>
-                            <td style="padding: 12px 10px;">
-                                <span class="badge {% if item.status == 'approved' %}badge-success{% elif item.status == 'pending' %}badge-progress{% else %}badge-muted{% endif %}">
-                                    {{ item.get_status_display }}
-                                </span>
-                            </td>
-                            <td style="padding: 12px 10px; color: var(--text-muted);">{{ item.reason|default:"—" }}</td>
-                            <td style="padding: 12px 10px;" class="row-actions">
-                                {% if can_manage_leave and item.status == "pending" %}
-                                    <form method="POST" action="{% url 'leave_review' item.pk 'approve' %}" style="display:inline;">
-                                        {% csrf_token %}
-                                        <button type="submit" class="small link-btn success">Approve</button>
-                                    </form>
-                                    <form method="POST" action="{% url 'leave_review' item.pk 'reject' %}" style="display:inline;">
-                                        {% csrf_token %}
-                                        <button type="submit" class="small link-btn danger">Reject</button>
-                                    </form>
-                                {% elif membership.role == "member" and item.employee.user_id == request.user.id and item.status == "pending" %}
-                                    <form method="POST" action="{% url 'leave_cancel' item.pk %}" style="display:inline;" onsubmit="return confirm('Cancel this leave request?');">
-                                        {% csrf_token %}
-                                        <button type="submit" class="small link-btn danger">Cancel</button>
-                                    </form>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
+        <!-- Attendance -->
+        <section id="attendance" class="content-card animate-block delay-3">
+            <div class="card-header">
+                <div>
+                    <h2>Attendance Records</h2>
+                    <p>Recent check-ins and time tracking.</p>
+                </div>
+                {% if can_manage_attendance %}
+                    <a class="btn btn-sm" href="{% url 'attendance_create' employee.id %}">+ Add Record</a>
+                {% endif %}
             </div>
-        {% else %}
-            <div class="empty" style="text-align: center; padding: 32px 0; color: var(--text-muted);">
-                <h3 style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">No leave records</h3>
-                <p class="muted">No leave requests have been recorded yet.</p>
-            </div>
-        {% endif %}
-    {% else %}
-        <div class="empty" style="text-align: center; padding: 32px 0; color: var(--text-muted);">
-            <h3 style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">Restricted</h3>
-            <p class="muted">You don't have access to this employee's leave records.</p>
-        </div>
-    {% endif %}
-</section>
 
+            {% if can_view_records %}
+                {% if attendance %}
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Check In</th>
+                                    <th>Check Out</th>
+                                    <th>Status</th>
+                                    {% if can_manage_attendance %}<th></th>{% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% for item in attendance %}
+                                <tr>
+                                    <td style="font-weight: 600;">{{ item.date }}</td>
+                                    <td>{{ item.check_in|date:"h:i A"|default:"—" }}</td>
+                                    <td>{{ item.check_out|date:"h:i A"|default:"—" }}</td>
+                                    <td><span class="badge badge-neutral">{{ item.get_status_display }}</span></td>
+                                    {% if can_manage_attendance %}
+                                    <td style="text-align: right; display: flex; gap: 12px; justify-content: flex-end;">
+                                        <a class="text-primary link-btn" href="{% url 'attendance_update' item.pk %}">Edit</a>
+                                        <form method="POST" action="{% url 'attendance_delete' item.pk %}" style="display:inline;" onsubmit="return confirm('Delete this record?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="link-btn text-danger">Delete</button>
+                                        </form>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <h3>No Attendance Logged</h3>
+                        <p>There are no time entries for this employee.</p>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="empty-state">
+                    <h3>Restricted Access</h3>
+                    <p>You do not have permission to view attendance records.</p>
+                </div>
+            {% endif %}
+        </section>
+
+        <!-- Leave -->
+        <section id="leave" class="content-card animate-block delay-4">
+            <div class="card-header">
+                <div>
+                    <h2>Leave Requests</h2>
+                    <p>Time off history and pending approvals.</p>
+                </div>
+                {% if membership.role != "member" %}
+                    <a class="btn btn-sm" href="{% url 'leave_create' employee.id %}">+ Add Leave</a>
+                {% endif %}
+            </div>
+
+            {% if can_view_records %}
+                {% if leaves %}
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Duration</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% for item in leaves %}
+                                <tr>
+                                    <td style="font-weight: 600;">{{ item.start_date|date:"M d" }} &rarr; {{ item.end_date|date:"M d" }}</td>
+                                    <td>{{ item.get_leave_type_display }}</td>
+                                    <td>
+                                        <span class="badge {% if item.status == 'approved' %}badge-success{% elif item.status == 'pending' %}badge-warning{% else %}badge-neutral{% endif %}">
+                                            {{ item.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td style="text-align: right; display: flex; gap: 12px; justify-content: flex-end;">
+                                        {% if can_manage_leave and item.status == "pending" %}
+                                            <form method="POST" action="{% url 'leave_review' item.pk 'approve' %}" style="display:inline;">
+                                                {% csrf_token %}
+                                                <button type="submit" class="link-btn text-success">Approve</button>
+                                            </form>
+                                            <form method="POST" action="{% url 'leave_review' item.pk 'reject' %}" style="display:inline;">
+                                                {% csrf_token %}
+                                                <button type="submit" class="link-btn text-danger">Reject</button>
+                                            </form>
+                                        {% elif membership.role == "member" and item.employee.user_id == request.user.id and item.status == "pending" %}
+                                            <form method="POST" action="{% url 'leave_cancel' item.pk %}" style="display:inline;" onsubmit="return confirm('Cancel this leave request?');">
+                                                {% csrf_token %}
+                                                <button type="submit" class="link-btn text-danger">Cancel</button>
+                                            </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <h3>No Leave History</h3>
+                        <p>No time off has been requested yet.</p>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="empty-state">
+                    <h3>Restricted Access</h3>
+                    <p>You do not have permission to view leave records.</p>
+                </div>
+            {% endif %}
+        </section>
+    </main>
+</div>
 {% endblock %}

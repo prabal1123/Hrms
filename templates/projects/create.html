@@ -1,14 +1,343 @@
 {% extends "base.html" %}
-{% block title %}New Project{% endblock %}
+{% block title %}New Project · {{ organization.name }}{% endblock %}
+
 {% block content %}
-<div class="card narrow">
-    <div class="eyebrow">{{ organization.name }}</div>
-    <h1>Create project</h1>
+<!-- 1. Include TomSelect CSS & JS for the Searchable Tags -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.default.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-glow: rgba(79, 70, 229, 0.15);
+    --primary-light: #eef2ff;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+  }
+
+  @keyframes slideUpFade {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .create-viewport {
+    display: flex;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+
+  .create-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2.5rem;
+    max-width: 520px;
+    width: 100%;
+    box-shadow: 
+      0 4px 6px -1px rgba(0, 0, 0, 0.04),
+      0 10px 15px -3px rgba(0, 0, 0, 0.06);
+    animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    box-sizing: border-box;
+  }
+
+  .panel-header {
+    margin-bottom: 2rem;
+  }
+
+  .icon-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: var(--primary-light);
+    color: var(--primary);
+    border-radius: 12px;
+    margin-bottom: 1.25rem;
+  }
+
+  .eyebrow {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .panel-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+    margin: 0 0 0.25rem;
+  }
+
+  .panel-header p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  /* Django Form General Styling */
+  .create-panel form p {
+    margin-bottom: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .create-panel label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+  }
+
+  .create-panel input[type="text"],
+  .create-panel input[type="url"],
+  .create-panel input[type="number"],
+  .create-panel textarea,
+  .create-panel select {
+    width: 100%;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    background: #f8fafc;
+    color: var(--text-main);
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+  }
+  
+  .create-panel textarea {
+    min-height: 100px;
+    resize: vertical;
+  }
+
+  .create-panel input:focus,
+  .create-panel textarea:focus,
+  .create-panel select:focus {
+    outline: none;
+    background: #ffffff;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+  }
+
+  /* ---------------------------------------------------
+     TOM-SELECT CUSTOM UI OVERRIDES
+     --------------------------------------------------- */
+  /* ---------------------------------------------------
+     TOM-SELECT CUSTOM UI OVERRIDES (CRISP TEXT FIX)
+     --------------------------------------------------- */
+  .ts-wrapper {
+    padding: 0 !important;
+    border: none !important;
+  }
+  
+  .ts-control {
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    padding: 0.4rem 0.85rem !important;
+    font-size: 0.95rem !important;
+    background: #f8fafc !important;
+    min-height: 44px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Limit transition to specific properties to prevent sub-pixel blur */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease !important;
+  }
+  
+  .ts-wrapper.focus .ts-control {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px var(--primary-glow) !important;
+    background: #ffffff !important;
+  }
+  
+  /* The selected tags - Higher contrast and locked font weight */
+  .ts-control .item {
+    background: #eef2ff !important;
+    color: #3730a3 !important; /* Darker indigo for high contrast */
+    border: 1px solid #c7d2fe !important;
+    border-radius: 6px !important;
+    padding: 4px 10px !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    margin: 3px 4px 3px 0 !important;
+    letter-spacing: 0.01em;
+    text-shadow: none !important;
+  }
+  
+  .ts-control .item .remove {
+    color: #4338ca !important;
+    border-left: 1px solid #c7d2fe !important;
+  }
+  
+  .ts-control .item .remove:hover {
+    background: #e0e7ff !important;
+  }
+  
+  /* The dropdown menu */
+  .ts-dropdown {
+    border-radius: 8px !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+    overflow: hidden;
+    margin-top: 6px;
+    -webkit-font-smoothing: antialiased;
+  }
+  
+  .ts-dropdown .option {
+    padding: 10px 14px !important;
+    font-size: 0.9rem !important;
+    color: #1e293b !important; /* Dark slate for crisp readability */
+    font-weight: 500 !important;
+  }
+  
+  .ts-dropdown .option.active {
+    background: #f8fafc !important;
+    color: var(--primary) !important;
+    font-weight: 600 !important;
+  }
+  
+  select[multiple] {
+    display: none;
+  }
+  /* --------------------------------------------------- */
+  /* --------------------------------------------------- */
+
+  .create-panel .helptext {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+    margin-top: 0.15rem;
+  }
+
+  .create-panel .errorlist {
+    color: #dc2626;
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.5rem 0;
+    font-size: 0.825rem;
+    font-weight: 500;
+  }
+
+  /* Buttons */
+  .form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    background: #ffffff;
+    color: var(--text-main);
+    flex: 1;
+  }
+
+  .btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+  }
+
+  .btn-primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  }
+  
+  .btn:active {
+    transform: scale(0.99);
+  }
+
+  @media (max-width: 480px) {
+    .create-viewport {
+      padding: 1rem 0;
+    }
+    .create-panel {
+      padding: 1.5rem;
+      border-radius: 12px;
+      border-left: none;
+      border-right: none;
+    }
+    .form-actions {
+      flex-direction: column;
+    }
+    .btn {
+      width: 100%;
+    }
+  }
+</style>
+
+<div class="create-viewport">
+  <div class="create-panel">
+    
+    <div class="panel-header">
+      <div class="icon-badge">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          <line x1="12" y1="11" x2="12" y2="17"></line>
+          <line x1="9" y1="14" x2="15" y2="14"></line>
+        </svg>
+      </div>
+      <div class="eyebrow">{{ organization.name }}</div>
+      <h1>Create project</h1>
+      <p>Set up a new workspace for your team.</p>
+    </div>
+
     <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
+      {% csrf_token %}
+      
+      {{ form.as_p }}
+      
+      <div class="form-actions">
         <button class="btn btn-primary" type="submit">Create project</button>
         <a class="btn" href="{% url 'organization_detail' organization.id %}">Cancel</a>
+      </div>
     </form>
+    
+  </div>
 </div>
+
+<!-- 2. Initialize TomSelect on any multiple select fields -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Find all multiple select elements rendered by Django
+    const multiSelects = document.querySelectorAll('select[multiple]');
+    
+    multiSelects.forEach(function(select) {
+      new TomSelect(select, {
+        plugins: ['remove_button'],
+        placeholder: 'Search and select employees...',
+        maxOptions: 50,
+        hideSelected: true
+      });
+    });
+  });
+</script>
 {% endblock %}

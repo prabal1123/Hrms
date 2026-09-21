@@ -26,6 +26,9 @@ from . import views
 urlpatterns = [
     path("org/<int:org_id>/employees/", views.employee_list, name="employee_list"),
     path("org/<int:org_id>/employees/create/", views.employee_create, name="employee_create"),
+    path("org/<int:org_id>/employees/import/", views.employee_import, name="employee_import"),
+    path("org/<int:org_id>/employees/import/template/", views.employee_import_template, name="employee_import_template"),
+    path("org/<int:org_id>/employees/import/problems/", views.employee_import_problems, name="employee_import_problems"),
     path("employees/<uuid:uuid>/", views.employee_detail, name="employee_detail"),
     path("org/<int:org_id>/payroll/", views.payroll, name="payroll"),
     path("org/<int:org_id>/attendance/", views.attendance_list, name="attendance_list"),

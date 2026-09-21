@@ -6,6 +6,7 @@ from projects.models import Project, Action
 from employees.models import Employee
 from .forms import ProjectForm, ActionForm
 
+
 @login_required
 def organization_projects(request, org_id):
     membership = get_object_or_404(

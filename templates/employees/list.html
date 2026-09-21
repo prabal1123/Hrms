@@ -3,36 +3,363 @@
 {% block title %}Employees{% endblock %}
 
 {% block content %}
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-light: #eef2ff;
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --radius-lg: 16px;
+    --radius-md: 10px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+    --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.04), 0 4px 6px -4px rgba(0,0,0,0.02);
+  }
+
+  @keyframes slideUpFade {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-block {
+    animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+  }
+  .delay-1 { animation-delay: 0.05s; }
+
+  /* Page Header */
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  .page-header .eyebrow {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 6px;
+    display: inline-block;
+    background: var(--primary-light);
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+  .page-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .page-header p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin: 0;
+  }
+  .header-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* Main Card Container */
+  .directory-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-header h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+  }
+  .card-header .count {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  /* Toolbar (Search & Filter) */
+  .table-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--border);
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .search-box {
+    position: relative;
+    flex: 1;
+    min-width: 250px;
+  }
+  .search-box svg {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+  }
+  .search-box input {
+    width: 100%;
+    padding: 10px 10px 10px 38px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    transition: all 0.2s;
+    box-sizing: border-box;
+  }
+  .search-box input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+  }
+  .filter-box select {
+    padding: 10px 32px 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    background-color: var(--surface);
+    cursor: pointer;
+  }
+  .filter-box select:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+
+  /* Table Styling */
+  .table-container {
+    overflow-x: auto;
+    position: relative;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    white-space: nowrap;
+  }
+  th {
+    background: #ffffff;
+    padding: 14px 24px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 16px 24px;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tr:last-child td {
+    border-bottom: none;
+  }
+  tbody tr {
+    transition: background-color 0.2s ease;
+  }
+  tbody tr:hover {
+    background-color: var(--surface-alt);
+  }
+
+  /* Sticky Right Action Column */
+  th.col-action,
+  td.col-action {
+    position: sticky;
+    right: 0;
+    text-align: right;
+    background: var(--surface);
+    z-index: 2;
+    box-shadow: -4px 0 8px -2px rgba(15, 23, 42, 0.06);
+  }
+  th.col-action {
+    background: #ffffff;
+    z-index: 3;
+  }
+  tbody tr:hover td.col-action {
+    background: var(--surface-alt);
+  }
+
+  /* Badges & Tags */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+  
+  .badge-id {
+    background: var(--surface-alt);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    font-family: monospace;
+    font-size: 0.85rem;
+  }
+
+  .badge-project {
+    background: var(--surface);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    margin-right: 4px;
+    font-weight: 500;
+  }
+
+  .badge-status-active {
+    background: var(--success-light);
+    color: #047857;
+    border-radius: 20px;
+    padding: 4px 12px;
+  }
+  .badge-status-inactive {
+    background: #f1f5f9;
+    color: #475569;
+    border-radius: 20px;
+    padding: 4px 12px;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-main);
+    transition: all 0.2s ease;
+  }
+  .btn:hover {
+    background: var(--surface-alt);
+    border-color: #cbd5e1;
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+  }
+  .btn-primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  }
+  
+  .text-link {
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+  .text-link:hover {
+    opacity: 0.7;
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 64px 24px;
+  }
+  .empty-state h3 { font-size: 1.15rem; color: var(--text-main); margin: 0 0 8px; }
+  .empty-state p { color: var(--text-muted); font-size: 0.95rem; margin: 0 0 24px; }
+  .no-results { display: none; text-align: center; padding: 40px; color: var(--text-muted); }
+
+  @media (max-width: 640px) {
+    .page-header { flex-direction: column; align-items: flex-start; }
+    .header-actions { width: 100%; }
+    .header-actions .btn { flex: 1; text-align: center; }
+    .table-toolbar { flex-direction: column; align-items: stretch; }
+    .filter-box select { width: 100%; }
+  }
+</style>
 
 {% with org=organization|default:current_org %}
 
-<div class="page-head">
+<div class="page-header animate-block">
     <div>
         <div class="eyebrow">{{ org.name }}</div>
         <h1>Employees</h1>
-        <p class="muted">Employee master data, payroll, attendance and leave.</p>
+        <p>Employee master data, payroll, attendance and leave.</p>
     </div>
 
-    <div class="actions">
+    <div class="header-actions">
         <a class="btn" href="{% url 'payroll' org.id %}">Payroll</a>
-        <a class="btn btn-primary" href="{% url 'employee_create' org.id %}">+ Add employee</a>
+        {% if can_import %}
+            <a class="btn" href="{% url 'employee_import' org.id %}">Import</a>
+        {% endif %}
+        <a class="btn btn-primary" href="{% url 'employee_create' org.id %}">+ Add Employee</a>
     </div>
 </div>
 
-<div class="card">
+<div class="directory-card animate-block delay-1">
 
-    <div class="section-head" style="margin-bottom:16px;">
-        <h2>Employee directory</h2>
-        <span class="muted small">{{ employees|length }} employee{{ employees|length|pluralize }}</span>
+    <div class="card-header">
+        <h2>Directory</h2>
+        <span class="count" id="employeeCount">{{ employees|length }} employee{{ employees|length|pluralize }}</span>
     </div>
 
     {% if employees %}
+        <!-- SEARCH & FILTER TOOLBAR -->
+        <div class="table-toolbar">
+            <div class="search-box">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="searchInput" placeholder="Search by name, ID, or email...">
+            </div>
+            <div class="filter-box">
+                <select id="statusFilter">
+                    <option value="all">All Statuses</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+        </div>
 
-        <div class="table-wrap">
-            <table>
+        <div class="table-container">
+            <table id="employeeTable">
                 <thead>
                     <tr>
-                        <th>Employee ID</th>
+                        <th>ID</th>
                         <th>Name</th>
                         <th>Projects</th>
                         <th>Email</th>
@@ -40,50 +367,108 @@
                         <th>Salary</th>
                         {% endif %}
                         <th>Status</th>
+                        <th class="col-action"></th> <!-- Fixed Sticky Header -->
                     </tr>
                 </thead>
 
                 <tbody>
-                {% for employee in employees %}
-                    <tr>
-                        <td><a class="badge" href="{% url 'employee_detail' employee.uuid %}">{{ employee.employee_id }}</a></td>
+                <!-- Django's dictsort ensures sequential ordering by employee_id -->
+                {% for employee in employees|dictsort:"employee_id" %}
+                    <tr class="employee-row" data-status="{% if employee.is_active %}active{% else %}inactive{% endif %}">
+                        <td><span class="badge badge-id">{{ employee.employee_id }}</span></td>
                         <td><strong>{{ employee.first_name }} {{ employee.last_name }}</strong></td>
                         <td>
                             {% for p in employee.projects.all %}
-                                <a class="badge badge-muted" href="{% url 'project_dashboard' p.id %}">{{ p.name }}</a>
+                                <span class="badge badge-project">{{ p.name }}</span>
                             {% empty %}
-                                <span class="muted small">Not assigned</span>
+                                <span style="color: var(--text-muted); font-size: 0.85rem; font-style: italic;">Not assigned</span>
                             {% endfor %}
                         </td>
-                        <td class="muted">{{ employee.email|default:"—" }}</td>
+                        <td style="color: var(--text-muted);">{{ employee.email|default:"—" }}</td>
+                        
                         {% if can_view_salary_column %}
-                        <td><strong>₹ {{ employee.salary|floatformat:2 }}</strong></td>
+                        <td style="font-weight: 600;">₹ {{ employee.salary|floatformat:2 }}</td>
                         {% endif %}
+                        
                         <td>
                             {% if employee.is_active %}
-                                <span class="badge badge-success">Active</span>
+                                <span class="badge badge-status-active">Active</span>
                             {% else %}
-                                <span class="badge badge-muted">Inactive</span>
+                                <span class="badge badge-status-inactive">Inactive</span>
                             {% endif %}
+                        </td>
+                        
+                        <!-- Fixed Sticky Action Column -->
+                        <td class="col-action">
+                            <a href="{% url 'employee_detail' employee.uuid %}" class="text-link">View details &rarr;</a>
                         </td>
                     </tr>
                 {% endfor %}
                 </tbody>
             </table>
+            
+            <div id="noResultsMsg" class="no-results">
+                No employees match your search criteria.
+            </div>
         </div>
-
     {% else %}
-
-        <div class="empty">
+        <div class="empty-state">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
             <h3>No employees yet</h3>
-            <p class="muted">Add your first employee to start managing your organization.</p>
-            <a class="btn btn-primary" href="{% url 'employee_create' org.id %}">Add employee</a>
+            <p>Add your first employee to start managing your organization.</p>
+            <a class="btn btn-primary" href="{% url 'employee_create' org.id %}">+ Add Employee</a>
         </div>
-
     {% endif %}
 
 </div>
 
 {% endwith %}
+
+<!-- INSTANT SEARCH & FILTER SCRIPT -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const rows = document.querySelectorAll('.employee-row');
+    const noResultsMsg = document.getElementById('noResultsMsg');
+    const countDisplay = document.getElementById('employeeCount');
+
+    function filterTable() {
+        if (!searchInput || !statusFilter) return;
+        
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusValue = statusFilter.value;
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const textContent = row.textContent.toLowerCase();
+            const rowStatus = row.getAttribute('data-status');
+            
+            const matchesSearch = textContent.includes(searchTerm);
+            const matchesStatus = statusValue === 'all' || rowStatus === statusValue;
+
+            if (matchesSearch && matchesStatus) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Toggle "No results" message
+        if (visibleCount === 0 && rows.length > 0) {
+            noResultsMsg.style.display = 'block';
+        } else {
+            noResultsMsg.style.display = 'none';
+        }
+
+        // Update the count in the header
+        countDisplay.textContent = visibleCount === 1 ? '1 employee' : `${visibleCount} employees`;
+    }
+
+    if (searchInput) searchInput.addEventListener('input', filterTable);
+    if (statusFilter) statusFilter.addEventListener('change', filterTable);
+});
+</script>
 
 {% endblock %}

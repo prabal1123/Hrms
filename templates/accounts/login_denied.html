@@ -1,10 +1,150 @@
 {% extends "base.html" %}
-{% block title %}Account not found{% endblock %}
+{% block title %}Account Not Found — Workspace{% endblock %}
+
 {% block auth_content %}
-<div class="card narrow">
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+  }
+
+  .auth-viewport {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 1rem;
+    box-sizing: border-box;
+    background: 
+      radial-gradient(at 0% 0%, rgba(239, 68, 68, 0.04) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.05) 0px, transparent 50%);
+  }
+
+  .auth-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2.5rem 2.25rem;
+    max-width: 440px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 
+      0 4px 6px -1px rgba(0, 0, 0, 0.05),
+      0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    animation: slideUp 0.35s ease-out forwards;
+    box-sizing: border-box;
+  }
+
+  .auth-brand-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: #fef2f2;
+    color: #ef4444;
+    border-radius: 12px;
+    margin-bottom: 1.25rem;
+  }
+
+  .auth-panel h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-main);
+    margin: 0 0 0.75rem;
+  }
+
+  .auth-panel p {
+    color: var(--text-muted);
+    font-size: 0.925rem;
+    line-height: 1.5;
+    margin: 0 0 1.75rem;
+  }
+
+  .action-btn {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    line-height: 44px;
+    text-align: center;
+    background: var(--primary);
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    box-sizing: border-box;
+    transition: background-color 0.15s ease;
+  }
+
+  .action-btn:hover {
+    background: var(--primary-hover);
+  }
+
+  .auth-footnote {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  .auth-footnote a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .auth-footnote a:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 480px) {
+    .auth-viewport {
+      padding: 1rem;
+      align-items: flex-start;
+      padding-top: 2rem;
+    }
+    .auth-panel {
+      padding: 1.75rem 1.25rem;
+      border-radius: 12px;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
+
+<div class="auth-viewport">
+  <div class="auth-panel">
+    <div class="auth-brand-badge">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+    </div>
+
     <h1>Account not found</h1>
-    <p>We couldn't find an active account for what you entered. Please contact your admin to get access.</p>
-    <p class="small"><a href="{% url 'login' %}">Try again</a></p>
-    <p class="small">Starting a new organization? <a href="{% url 'register' %}">Register</a></p>
+    <p>We couldn't find an active account with the credentials provided. Please contact your organization administrator to request access.</p>
+
+    <a class="action-btn" href="{% url 'login' %}">Try again</a>
+
+    <div class="auth-footnote">
+      Starting a new workspace? <a href="{% url 'register' %}">Register organization</a>
+    </div>
+  </div>
 </div>
 {% endblock %}

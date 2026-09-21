@@ -1,15 +1,567 @@
 {% extends "base.html" %}
-{% block title %}Add Employee{% endblock %}
+
+{% block title %}{% if editing %}Edit {{ employee.first_name }} {{ employee.last_name }}{% else %}Add Employee{% endif %} · {{ organization.name }}{% endblock %}
+
 {% block content %}
-<div class="card">
-    <div class="eyebrow">{{ organization.name }}</div>
-    <h1>Add employee</h1>
-    <p class="muted">Enter employee master and payroll information.</p>
-    <form method="post">
-        {% csrf_token %}
-        <div class="form-grid">{{ form.as_p }}</div>
-        <button class="btn btn-primary" type="submit">Save employee</button>
-        <a class="btn" href="{% url 'employee_list' organization.id %}">Cancel</a>
-    </form>
-</div>
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-light: #eef2ff;
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --radius-lg: 12px;
+    --radius-md: 8px;
+    --radius-sm: 6px;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  }
+
+  @keyframes slideUpFade {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-block {
+    animation: slideUpFade 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Page Header */
+  .page-header-compact {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .page-header-compact .eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--primary);
+    background: var(--primary-light);
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 4px;
+  }
+  .page-header-compact h1 {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* 2-Column Responsive Layout (Fixes the gap) */
+  .two-col-layout {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .layout-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+  }
+
+  /* Dense Card */
+  .dense-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .dense-card-head {
+    padding: 12px 18px;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--border);
+  }
+  .dense-card-head h2 {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .dense-card-body {
+    padding: 18px;
+  }
+
+  .inner-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 16px;
+  }
+  .col-span-2 {
+    grid-column: 1 / -1;
+  }
+
+  .section-subtitle {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 6px 0 -2px;
+    padding-bottom: 4px;
+    border-bottom: 1px dashed var(--border);
+  }
+
+  /* Form Elements */
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .form-group label {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .form-group label .req {
+    color: var(--danger);
+  }
+  .form-group input[type="text"],
+  .form-group input[type="email"],
+  .form-group input[type="tel"],
+  .form-group input[type="number"],
+  .form-group input[type="date"],
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    box-sizing: border-box;
+    height: 38px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+    color: var(--text-main);
+    background: var(--surface);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .form-group textarea {
+    height: auto;
+    min-height: 64px;
+    resize: vertical;
+  }
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  }
+
+  .checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .checkbox-container input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+    cursor: pointer;
+  }
+  .checkbox-container label {
+    font-size: 0.85rem;
+    color: var(--text-main);
+    font-weight: 600;
+    cursor: pointer;
+    text-transform: none;
+  }
+
+  /* Errors */
+  .field-error {
+    color: var(--danger);
+    font-size: 0.74rem;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+  .error-summary {
+    background: var(--danger-light);
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    margin-bottom: 18px;
+    font-size: 0.85rem;
+  }
+  .error-summary ul {
+    margin: 4px 0 0;
+    padding-left: 18px;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-main);
+    transition: all 0.15s ease;
+  }
+  .btn:hover {
+    background: var(--surface-alt);
+    border-color: #cbd5e1;
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+    box-shadow: 0 1px 3px rgba(79, 70, 229, 0.25);
+  }
+  .btn-primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
+
+  @media (max-width: 860px) {
+    .two-col-layout {
+      flex-direction: column;
+      gap: 16px;
+    }
+    .inner-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .page-header-compact {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .header-actions {
+      width: 100%;
+    }
+    .header-actions .btn {
+      flex: 1;
+    }
+  }
+</style>
+
+<form method="post" class="animate-block">
+    {% csrf_token %}
+
+    <!-- Top Action Bar -->
+    <div class="page-header-compact">
+        <div>
+            <div class="eyebrow">{{ organization.name }}</div>
+            <h1>{% if editing %}Edit: {{ employee.first_name }} {{ employee.last_name }}{% else %}Add Employee{% endif %}</h1>
+        </div>
+        <div class="header-actions">
+            {% if editing %}
+                <a class="btn" href="{% url 'employee_detail' employee.uuid %}">Cancel</a>
+            {% else %}
+                <a class="btn" href="{% url 'employee_list' organization.id %}">Cancel</a>
+            {% endif %}
+            <button class="btn btn-primary" type="submit">
+                {% if editing %}Save Changes{% else %}Save Employee{% endif %}
+            </button>
+        </div>
+    </div>
+
+    {% if form.non_field_errors %}
+        <div class="error-summary">
+            <strong>Please resolve the following:</strong>
+            <ul>
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <!-- Two-Column Fluid Stacking Layout -->
+    <div class="two-col-layout">
+
+        <!-- LEFT COLUMN: Card 1 (Profile & Role) + Card 3 (Bank Account) -->
+        <div class="layout-col">
+
+            <!-- CARD 1: PROFILE & ROLE -->
+            <div class="dense-card">
+                <div class="dense-card-head">
+                    <h2>1. Profile &amp; Role</h2>
+                </div>
+                <div class="dense-card-body">
+                    <div class="inner-grid">
+                        {% if form.first_name %}
+                        <div class="form-group">
+                            <label for="{{ form.first_name.id_for_label }}">First Name <span class="req">*</span></label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}<div class="field-error">{{ form.first_name.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.last_name %}
+                        <div class="form-group">
+                            <label for="{{ form.last_name.id_for_label }}">Last Name</label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}<div class="field-error">{{ form.last_name.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.email %}
+                        <div class="form-group">
+                            <label for="{{ form.email.id_for_label }}">Email <span class="req">*</span></label>
+                            {{ form.email }}
+                            {% if form.email.errors %}<div class="field-error">{{ form.email.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.phone %}
+                        <div class="form-group">
+                            <label for="{{ form.phone.id_for_label }}">Mobile</label>
+                            {{ form.phone }}
+                            {% if form.phone.errors %}<div class="field-error">{{ form.phone.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.designation %}
+                        <div class="form-group">
+                            <label for="{{ form.designation.id_for_label }}">Designation</label>
+                            {{ form.designation }}
+                            {% if form.designation.errors %}<div class="field-error">{{ form.designation.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.date_joined %}
+                        <div class="form-group">
+                            <label for="{{ form.date_joined.id_for_label }}">Joining Date</label>
+                            {{ form.date_joined }}
+                            {% if form.date_joined.errors %}<div class="field-error">{{ form.date_joined.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.supervisor %}
+                        <div class="form-group">
+                            <label for="{{ form.supervisor.id_for_label }}">Supervisor</label>
+                            {{ form.supervisor }}
+                            {% if form.supervisor.errors %}<div class="field-error">{{ form.supervisor.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.access_group %}
+                        <div class="form-group">
+                            <label for="{{ form.access_group.id_for_label }}">Access Group</label>
+                            {{ form.access_group }}
+                            {% if form.access_group.errors %}<div class="field-error">{{ form.access_group.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.is_active %}
+                        <div class="form-group col-span-2">
+                            <div class="checkbox-container">
+                                {{ form.is_active }}
+                                <label for="{{ form.is_active.id_for_label }}">Active Status</label>
+                            </div>
+                            {% if form.is_active.errors %}<div class="field-error">{{ form.is_active.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD 3: BANK ACCOUNT -->
+            {% if form.bank_name or form.bank_account_no or form.ifsc_no %}
+            <div class="dense-card">
+                <div class="dense-card-head">
+                    <h2>3. Bank Account</h2>
+                </div>
+                <div class="dense-card-body">
+                    <div class="inner-grid">
+                        {% if form.bank_name %}
+                        <div class="form-group">
+                            <label for="{{ form.bank_name.id_for_label }}">Bank Name</label>
+                            {{ form.bank_name }}
+                            {% if form.bank_name.errors %}<div class="field-error">{{ form.bank_name.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.ifsc_no %}
+                        <div class="form-group">
+                            <label for="{{ form.ifsc_no.id_for_label }}">IFSC Code</label>
+                            {{ form.ifsc_no }}
+                            {% if form.ifsc_no.errors %}<div class="field-error">{{ form.ifsc_no.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.bank_account_no %}
+                        <div class="form-group col-span-2">
+                            <label for="{{ form.bank_account_no.id_for_label }}">Account Number</label>
+                            {{ form.bank_account_no }}
+                            {% if form.bank_account_no.errors %}<div class="field-error">{{ form.bank_account_no.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- RIGHT COLUMN: Card 2 (Identity & Statutory) + Card 4 (Payroll & Compensation) -->
+        <div class="layout-col">
+
+            <!-- CARD 2: IDENTITY & STATUTORY -->
+            {% if can_edit_sensitive or not editing %}
+            {% if form.aadhar_no or form.pan_no or form.uan_no or form.esic_no or form.address %}
+            <div class="dense-card">
+                <div class="dense-card-head">
+                    <h2>2. Identity &amp; Statutory</h2>
+                </div>
+                <div class="dense-card-body">
+                    <div class="inner-grid">
+                        {% if form.aadhar_no %}
+                        <div class="form-group">
+                            <label for="{{ form.aadhar_no.id_for_label }}">Aadhaar No.</label>
+                            {{ form.aadhar_no }}
+                            {% if form.aadhar_no.errors %}<div class="field-error">{{ form.aadhar_no.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.pan_no %}
+                        <div class="form-group">
+                            <label for="{{ form.pan_no.id_for_label }}">PAN No.</label>
+                            {{ form.pan_no }}
+                            {% if form.pan_no.errors %}<div class="field-error">{{ form.pan_no.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.uan_no %}
+                        <div class="form-group">
+                            <label for="{{ form.uan_no.id_for_label }}">UAN No.</label>
+                            {{ form.uan_no }}
+                            {% if form.uan_no.errors %}<div class="field-error">{{ form.uan_no.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.esic_no %}
+                        <div class="form-group">
+                            <label for="{{ form.esic_no.id_for_label }}">ESIC No.</label>
+                            {{ form.esic_no }}
+                            {% if form.esic_no.errors %}<div class="field-error">{{ form.esic_no.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.address %}
+                        <div class="form-group col-span-2">
+                            <label for="{{ form.address.id_for_label }}">Residential Address</label>
+                            {{ form.address }}
+                            {% if form.address.errors %}<div class="field-error">{{ form.address.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
+
+            <!-- CARD 4: PAYROLL & COMPENSATION -->
+            {% if form.salary or form.pf or form.esi or form.other_deductions %}
+            <div class="dense-card">
+                <div class="dense-card-head">
+                    <h2>4. Payroll &amp; Compensation</h2>
+                </div>
+                <div class="dense-card-body">
+                    <div class="inner-grid">
+                        {% if form.salary %}
+                        <div class="form-group col-span-2">
+                            <label for="{{ form.salary.id_for_label }}">Gross Salary (₹)</label>
+                            {{ form.salary }}
+                            {% if form.salary.errors %}<div class="field-error">{{ form.salary.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.pf or form.esi or form.other_deductions %}
+                        <div class="col-span-2 section-subtitle">
+                            Deductions &amp; Retentions
+                        </div>
+
+                        {% if form.pf %}
+                        <div class="form-group">
+                            <label for="{{ form.pf.id_for_label }}">PF Deduction (₹)</label>
+                            {{ form.pf }}
+                            {% if form.pf.errors %}<div class="field-error">{{ form.pf.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.esi %}
+                        <div class="form-group">
+                            <label for="{{ form.esi.id_for_label }}">ESI Deduction (₹)</label>
+                            {{ form.esi }}
+                            {% if form.esi.errors %}<div class="field-error">{{ form.esi.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.other_deductions %}
+                        <div class="form-group col-span-2">
+                            <label for="{{ form.other_deductions.id_for_label }}">Other Deductions (₹)</label>
+                            {{ form.other_deductions }}
+                            {% if form.other_deductions.errors %}<div class="field-error">{{ form.other_deductions.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    <!-- Fallback for dynamic unmapped fields -->
+    {% for field in form %}
+        {% if field.name not in "first_name,last_name,email,phone,designation,date_joined,supervisor,access_group,is_active,bank_name,bank_account_no,ifsc_no,aadhar_no,pan_no,uan_no,esic_no,address,salary,pf,esi,other_deductions" %}
+            <div class="dense-card" style="margin-top: 20px;">
+                <div class="dense-card-head"><h2>{{ field.label }}</h2></div>
+                <div class="dense-card-body">
+                    <div class="form-group">
+                        {{ field }}
+                        {% if field.errors %}<div class="field-error">{{ field.errors.0 }}</div>{% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    {% endfor %}
+
+    <!-- Bottom Actions -->
+    <div style="margin-top: 24px; display: flex; gap: 10px;">
+        <button class="btn btn-primary" type="submit" style="padding: 10px 24px;">
+            {% if editing %}Save Changes{% else %}Save Employee{% endif %}
+        </button>
+        {% if editing %}
+            <a class="btn" href="{% url 'employee_detail' employee.uuid %}" style="padding: 10px 20px;">Cancel</a>
+        {% else %}
+            <a class="btn" href="{% url 'employee_list' organization.id %}" style="padding: 10px 20px;">Cancel</a>
+        {% endif %}
+    </div>
+</form>
 {% endblock %}

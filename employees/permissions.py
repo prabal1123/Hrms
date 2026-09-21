@@ -10,6 +10,9 @@ This is the single place that encodes the Step 3 rules:
   can never approve/reject their own leave, and can never edit salary
   or open payroll.
 - Employees (member) see only their own data.
+- Identity / bank details (Aadhar, PAN, bank account, UAN, ESIC, address) are
+  stricter than salary: only admins and the employee themselves. Supervisors
+  never see them, not even for direct reports.
 """
 
 from .models import Employee
@@ -122,4 +125,20 @@ def can_view_payroll(membership):
 
 def can_edit_payroll(membership):
     """Only admins may confirm/unconfirm payroll rows."""
+    return is_admin(membership)
+
+
+def can_view_sensitive(membership, employee):
+    """
+    Aadhar / PAN / bank details / UAN / ESIC / address.
+    Admin/owner, or the employee themselves. Deliberately NOT extended to
+    supervisors (unlike salary).
+    """
+    if employee.user_id is not None and employee.user_id == membership.user_id:
+        return True
+    return is_admin(membership)
+
+
+def can_edit_sensitive(membership):
+    """Only admins may change identity / bank details."""
     return is_admin(membership)

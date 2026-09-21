@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Import employees{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+    <a href="{% url 'employee_list' org_id %}">{{ organization.name }}</a>
+    <span>›</span>
+    <span>Import employees</span>
+</div>
+
+<div class="page-head">
+    <div>
+        <div class="eyebrow">{{ organization.name }}</div>
+        <h1>Import employees</h1>
+        <p class="muted">Upload an Excel sheet. You review everything before anything is saved.</p>
+    </div>
+    <div class="actions">
+        <a class="btn" href="{% url 'employee_import_template' org_id %}">Download template</a>
+        <a class="btn" href="{% url 'employee_list' org_id %}">Back to employees</a>
+    </div>
+</div>
+
+{% if stage == "upload" %}
+
+<div class="card">
+    {% for error in file_errors %}<div class="alert" style="background:#fef3f2;border-color:#fda29b;color:#b42318;">{{ error }}</div>{% endfor %}
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Preview import</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Expected columns</h2>
+    <p class="muted small">Only <strong>Emp Name</strong> and <strong>Mail ID</strong> are required. Headers can be in any of the first 5 rows; capitals and full stops don't matter. Everyone imported gets a login and sets their own password the first time they log in.</p>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Column</th><th></th></tr></thead>
+            <tbody>
+            {% for c in columns %}
+                <tr><td>{{ c.label }}</td><td>{% if c.required %}<span class="badge">Required</span>{% elif c.is_checklist %}<span class="muted small">Date; marks the checklist item Done</span>{% endif %}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% elif stage == "preview" %}
+
+<div class="card">
+    <div class="section-head">
+        <h2>Preview</h2>
+        <div class="actions">
+            <span class="badge badge-success">{{ counts.READY }} ready</span>
+            <span class="badge badge-progress">{{ counts.WARNING }} with warnings</span>
+            <span class="badge badge-muted">{{ counts.SKIP }} skipped (duplicate)</span>
+            <span class="badge badge-danger">{{ counts.ERROR }} blocked</span>
+        </div>
+    </div>
+
+    {% for notice in notices %}<p class="muted small">{{ notice }}</p>{% endfor %}
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Row</th><th>Status</th>
+                    {% for name in column_names %}<th>{{ name }}</th>{% endfor %}
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in rows %}
+                <tr>
+                    <td>{{ row.n }}</td>
+                    <td>
+                        {% if row.status == "READY" %}<span class="badge badge-success">Ready</span>
+                        {% elif row.status == "WARNING" %}<span class="badge badge-progress">Warning</span>
+                        {% elif row.status == "SKIP" %}<span class="badge badge-muted">Skip</span>
+                        {% else %}<span class="badge badge-danger">Blocked</span>{% endif %}
+                    </td>
+                    {% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}
+                    <td>{% for note in row.notes %}<div class="small {% if row.status == 'ERROR' %}muted{% endif %}">{{ note }}</div>{% endfor %}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions" style="margin-top:20px;">
+        {% if importable %}
+        <form method="post" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm">
+            <input type="hidden" name="token" value="{{ token }}">
+            <button type="submit" class="btn btn-primary">Import {{ importable }} employee{{ importable|pluralize }}</button>
+        </form>
+        {% endif %}
+        {% if problems %}
+        <a class="btn" href="{% url 'employee_import_problems' org_id %}?token={{ token }}">Download the {{ problems }} row{{ problems|pluralize }} with problems</a>
+        {% endif %}
+        <a class="btn" href="{% url 'employee_import' org_id %}">Start over</a>
+    </div>
+    {% if importable %}
+    <p class="muted small" style="margin-top:14px;">Blocked and skipped rows are not imported. No emails are sent now; each person is guided to set a password when they first log in.</p>
+    {% else %}
+    <p class="muted small" style="margin-top:14px;">Nothing here can be imported. Fix the sheet and upload it again.</p>
+    {% endif %}
+</div>
+
+{% elif stage == "result" %}
+
+<div class="card">
+    <h2>Import finished</h2>
+    <p><span class="badge badge-success">{{ result.created|length }} imported</span>
+       {% if result.failed %}<span class="badge badge-danger">{{ result.failed|length }} failed</span>{% endif %}</p>
+
+    {% if result.failed %}
+    <h3>Not imported</h3>
+    <div class="table-wrap"><table>
+        <thead><tr><th>Row</th><th>Reason</th></tr></thead>
+        <tbody>{% for number, reason in result.failed %}<tr><td>{{ number }}</td><td>{{ reason }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% endif %}
+
+    {% if result.created %}
+    <h3>Imported</h3>
+    <div class="table-wrap"><table>
+        <thead><tr><th>Row</th><th>Employee ID</th><th>Login email</th></tr></thead>
+        <tbody>{% for number, employee_id, email in result.created %}<tr><td>{{ number }}</td><td>{{ employee_id }}</td><td>{{ email }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    <p class="muted small">They can log in with this email. The first time, they are asked to set a password through an emailed link.</p>
+    {% endif %}
+
+    <div class="actions" style="margin-top:16px;">
+        <a class="btn btn-primary" href="{% url 'employee_list' org_id %}">View employees</a>
+        <a class="btn" href="{% url 'employee_import' org_id %}">Import another file</a>
+    </div>
+</div>
+
+{% endif %}
+
+{% endblock %}

@@ -1,7 +1,498 @@
 {% extends "base.html" %}
-{% block title %}Payroll{% endblock %}
+
+{% block title %}Payroll · {{ organization.name }}{% endblock %}
+
 {% block content %}
-<div class="breadcrumb"><a href="{% url 'organization_detail' organization.id %}">{{ organization.name }}</a><span>›</span><span>Payroll</span></div>
-<div class="page-head"><div><div class="eyebrow">People & payroll</div><h1>Payroll review</h1><p class="muted">{% if can_edit_payroll %}Review salary and deductions, then confirm the employees ready for payroll.{% else %}View-only: salary and deductions for your direct reports.{% endif %}</p></div><a class="btn" href="{% url 'employee_list' organization.id %}">Manage employees</a></div>
-<form method="post">{% csrf_token %}<div class="card"><div class="table-wrap"><table><thead><tr><th>Confirm</th><th>Employee</th><th>Salary</th><th>PF</th><th>ESI</th><th>Other</th><th>Total deductions</th><th>Net salary</th></tr></thead><tbody>{% for employee in employees %}<tr><td><input type="checkbox" name="employee_ids" value="{{ employee.id }}" {% if employee.payroll_confirmed %}checked{% endif %} {% if not can_edit_payroll %}disabled{% endif %} aria-label="Confirm {{ employee.employee_id }}"></td><td><a href="{% url 'employee_detail' employee.uuid %}">{{ employee.employee_id }}</a><br>{{ employee.first_name }} {{ employee.last_name }}</td><td>₹ {{ employee.salary|floatformat:2 }}</td><td>₹ {{ employee.pf|floatformat:2 }}</td><td>₹ {{ employee.esi|floatformat:2 }}</td><td>₹ {{ employee.other_deductions|floatformat:2 }}</td><td>₹ {{ employee.total_deductions|floatformat:2 }}</td><td><strong>₹ {{ employee.net_salary|floatformat:2 }}</strong></td></tr>{% empty %}<tr><td colspan="8">No active employees.</td></tr>{% endfor %}</tbody></table></div></div>{% if can_edit_payroll %}<div class="actions"><button class="btn btn-primary" type="submit">Save payroll confirmation</button></div>{% endif %}</form>
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-light: #eef2ff;
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --warning: #f59e0b;
+    --warning-light: #fef3c7;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --radius-lg: 14px;
+    --radius-md: 8px;
+    --radius-sm: 6px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+  }
+
+  @keyframes slideUpFade {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-block {
+    animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Header */
+  .page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--primary);
+    background: var(--primary-light);
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 4px;
+  }
+  .page-head h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0 0 2px;
+  }
+  .page-head p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  /* Custom Range Toolbar */
+  .toolbar-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 16px 20px;
+    margin-bottom: 24px;
+  }
+  .toolbar-form {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .filter-group label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+  }
+  .filter-group input[type="date"],
+  .filter-group input[type="month"],
+  .filter-group select {
+    height: 38px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+    color: var(--text-main);
+    background: var(--surface);
+  }
+
+  /* Button Styling */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 38px;
+    padding: 0 16px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-main);
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+  .btn:hover { background: var(--surface-alt); }
+  .btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+    box-shadow: 0 1px 3px rgba(79, 70, 229, 0.25);
+  }
+  .btn-primary:hover { background: var(--primary-hover); }
+
+  /* Dashboard Cards & Layout */
+  .payroll-layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .card-head {
+    padding: 14px 20px;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-head h2 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .card-body {
+    padding: 20px;
+  }
+
+  /* Metrics Stack */
+  .metrics-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--border);
+    font-size: 0.88rem;
+  }
+  .metric-row:last-child {
+    border-bottom: none;
+  }
+  .metric-row.highlight {
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--primary-light);
+    border: 1px solid #c7d2fe;
+    font-weight: 700;
+    color: var(--primary);
+  }
+  .metric-row .val {
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  /* Attendance Calendar Grid (supports cross-month cycles) */
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+    gap: 8px;
+  }
+  .cal-day {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 4px;
+    text-align: center;
+    background: var(--surface);
+  }
+  .cal-day.is-weekend {
+    background: var(--surface-alt);
+    opacity: 0.8;
+  }
+  .cal-day-date {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.1;
+  }
+  .cal-day-month {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .cal-status {
+    font-size: 0.68rem;
+    font-weight: 700;
+    border-radius: 4px;
+    padding: 2px 4px;
+    display: inline-block;
+  }
+  .status-p { background: var(--success-light); color: #065f46; }
+  .status-hd { background: var(--warning-light); color: #92400e; }
+  .status-l { background: #e0e7ff; color: #3730a3; }
+  .status-a { background: var(--danger-light); color: #991b1b; }
+  .status-w { background: #f1f5f9; color: #64748b; }
+
+  /* Table styling */
+  .table-wrap {
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+    text-align: left;
+  }
+  th {
+    padding: 12px 18px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    background: #ffffff;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 14px 18px;
+    font-size: 0.88rem;
+    color: var(--text-main);
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tbody tr:hover { background: var(--surface-alt); }
+
+  .badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge-locked { background: var(--success-light); color: #065f46; }
+  .badge-draft { background: var(--warning-light); color: #92400e; }
+
+  @media (max-width: 900px) {
+    .payroll-layout { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="page-head animate-block">
+    <div>
+        <div class="eyebrow">{{ organization.name }}</div>
+        <h1>Payroll Cycle</h1>
+        <p>Active period: <strong>{{ start_date|date:"d M, Y" }}</strong> &rarr; <strong>{{ end_date|date:"d M, Y" }}</strong> ({{ total_days }} total days) · Cycle: {{ selected_month_date|date:"F Y" }}</p>
+    </div>
+
+    {% if can_edit_payroll %}
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_month_records">
+        <input type="hidden" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+        <input type="hidden" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+        <input type="hidden" name="month" value="{{ selected_month_str }}">
+        <button type="submit" class="btn btn-primary" onclick="return confirm('Lock and save payroll records for this period ({{ start_date|date:'d M' }} - {{ end_date|date:'d M, Y' }})?');">
+            Lock & Save Cycle Records
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+<!-- Toolbar: Custom Range + Month + Employee -->
+<div class="toolbar-card animate-block">
+    <form method="get" class="toolbar-form">
+        <div class="filter-group">
+            <label for="startDate">From Date:</label>
+            <input type="date" id="startDate" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+        </div>
+
+        <div class="filter-group">
+            <label for="endDate">To Date:</label>
+            <input type="date" id="endDate" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+        </div>
+
+        <div class="filter-group">
+            <label for="monthPicker">Reference Month:</label>
+            <input type="month" id="monthPicker" name="month" value="{{ selected_month_str }}">
+        </div>
+
+        <div class="filter-group" style="min-width: 220px;">
+            <label for="employeePicker">Employee:</label>
+            <select id="employeePicker" name="employee_id">
+                <option value="">All Employees (Roster)</option>
+                {% for emp in employees %}
+                    <option value="{{ emp.id }}" {% if selected_employee and selected_employee.id == emp.id %}selected{% endif %}>
+                        {{ emp.employee_id }} — {{ emp.first_name }} {{ emp.last_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Apply</button>
+        <a href="{% url 'payroll' org_id %}" class="btn">Reset to Current Month</a>
+    </form>
+</div>
+
+{% if selected_employee and single_calc %}
+<!-- INDIVIDUAL EMPLOYEE SALARY SLIP & ATTENDANCE CALENDAR -->
+<div class="payroll-layout animate-block">
+
+    <!-- Calculated Salary Breakdown Slip -->
+    <div class="card">
+        <div class="card-head">
+            <h2>Salary Computation</h2>
+            {% if single_calc.confirmed %}
+                <span class="badge badge-locked">Locked</span>
+            {% else %}
+                <span class="badge badge-draft">Draft</span>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <div style="margin-bottom: 14px;">
+                <strong style="font-size: 1.05rem;">{{ selected_employee.first_name }} {{ selected_employee.last_name }}</strong>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">{{ selected_employee.employee_id }} · {{ selected_employee.designation|default:"Staff" }}</div>
+            </div>
+
+            <div class="metrics-stack">
+                <div class="metric-row">
+                    <span>Base Monthly Rate</span>
+                    <span class="val">₹ {{ single_calc.base_salary|floatformat:2 }}</span>
+                </div>
+                <div class="metric-row">
+                    <span>Present Days</span>
+                    <span class="val">{{ single_calc.present_days }} / {{ single_calc.total_days }}</span>
+                </div>
+                <div class="metric-row">
+                    <span>Approved Leaves</span>
+                    <span class="val">{{ single_calc.paid_leave_days }} days</span>
+                </div>
+                <div class="metric-row">
+                    <span>Payable Days</span>
+                    <span class="val" style="color: var(--primary);">{{ single_calc.payable_days }} days</span>
+                </div>
+                <div class="metric-row">
+                    <span>Gross Earned</span>
+                    <span class="val">₹ {{ single_calc.gross_earned|floatformat:2 }}</span>
+                </div>
+                <div class="metric-row">
+                    <span>PF Deduction</span>
+                    <span class="val" style="color: var(--danger);">- ₹ {{ single_calc.pf|floatformat:2 }}</span>
+                </div>
+                <div class="metric-row">
+                    <span>ESI Deduction</span>
+                    <span class="val" style="color: var(--danger);">- ₹ {{ single_calc.esi|floatformat:2 }}</span>
+                </div>
+                <div class="metric-row">
+                    <span>Other Deductions</span>
+                    <span class="val" style="color: var(--danger);">- ₹ {{ single_calc.other_deductions|floatformat:2 }}</span>
+                </div>
+                <div class="metric-row highlight">
+                    <span>Net Payable</span>
+                    <span style="font-size: 1.15rem;">₹ {{ single_calc.net_salary|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Reconciliation Calendar -->
+    <div class="card">
+        <div class="card-head">
+            <h2>Attendance ({{ start_date|date:"d M" }} – {{ end_date|date:"d M" }})</h2>
+            <div style="display: flex; gap: 6px;">
+                <span class="cal-status status-p">P</span>
+                <span class="cal-status status-hd">HD</span>
+                <span class="cal-status status-l">L</span>
+                <span class="cal-status status-a">A</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="cal-grid">
+                {% for d in single_calc.calendar_days %}
+                    <div class="cal-day {% if d.is_weekend %}is-weekend{% endif %}">
+                        <div class="cal-day-date">{{ d.date|date:"j" }}</div>
+                        <div class="cal-day-month">{{ d.date|date:"M" }}</div>
+                        {% if d.status == "PRESENT" %}
+                            <span class="cal-status status-p">P</span>
+                        {% elif d.status == "HALF_DAY" %}
+                            <span class="cal-status status-hd">HD</span>
+                        {% elif d.status == "LEAVE" %}
+                            <span class="cal-status status-l">L</span>
+                        {% elif d.status == "WEEKEND" %}
+                            <span class="cal-status status-w">Off</span>
+                        {% else %}
+                            <span class="cal-status status-a">A</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% else %}
+
+<!-- ALL EMPLOYEES ROSTER VIEW -->
+<div class="card animate-block">
+    <div class="card-head">
+        <h2>{{ selected_month_date|date:"F Y" }} Payroll Roster ({{ start_date|date:"d M" }} – {{ end_date|date:"d M, Y" }})</h2>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">{{ payroll_data|length }} Employee{{ payroll_data|length|pluralize }}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Employee ID</th>
+                    <th>Name</th>
+                    <th>Present</th>
+                    <th>Leave</th>
+                    <th>Payable Days</th>
+                    <th>Base Rate</th>
+                    <th>Gross Earned</th>
+                    <th>Deductions</th>
+                    <th>Net Salary</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in payroll_data %}
+                <tr>
+                    <td><strong>{{ item.employee.employee_id }}</strong></td>
+                    <td>{{ item.employee.first_name }} {{ item.employee.last_name }}</td>
+                    <td>{{ item.present_days }} d</td>
+                    <td>{{ item.paid_leave_days }} d</td>
+                    <td style="font-weight: 700; color: var(--primary);">{{ item.payable_days }} / {{ item.total_days }} d</td>
+                    <td>₹ {{ item.base_salary|floatformat:2 }}</td>
+                    <td>₹ {{ item.gross_earned|floatformat:2 }}</td>
+                    <td style="color: var(--danger);">₹ {{ item.total_deductions|floatformat:2 }}</td>
+                    <td style="font-weight: 700;">₹ {{ item.net_salary|floatformat:2 }}</td>
+                    <td>
+                        {% if item.confirmed %}
+                            <span class="badge badge-locked">Locked</span>
+                        {% else %}
+                            <span class="badge badge-draft">Draft</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&month={{ selected_month_str }}&employee_id={{ item.employee.id }}" class="btn" style="height: 28px; padding: 0 10px; font-size: 0.78rem;">
+                            View Slip & Calendar &rarr;
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="11" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                        No active employees found for this period.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

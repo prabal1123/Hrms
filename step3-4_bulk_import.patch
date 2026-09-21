@@ -1,0 +1,1575 @@
+diff --git a/README.md b/README.md
+index 380eb01..5cc339d 100644
+--- a/README.md
++++ b/README.md
+@@ -94,3 +94,15 @@ After updating an existing checkout, run:
+ ```bash
+ python manage.py migrate
+ ```
++
++## Bulk employee import (admin / owner only)
++
++Employees page → **Import employees**.
++
++1. Download the template (or use your existing sheet; headers may be in any of the first 5 rows, and capitals / full stops don't matter).
++2. Upload the `.xlsx` (max 5 MB, 500 employee rows). Nothing is saved yet; you get a preview with each row marked Ready / Warning / Skip (duplicate) / Blocked.
++3. Confirm. Each employee is created with a login and organization membership. No email is sent at import: on their first login they are guided to set a password through the emailed one-time link.
++
++Required columns: **Emp Name**, **Mail ID**. Optional: Mobile No., Designation, Aadhar No., PAN NO., NAME OF BANK, Bank A/C No., IFSC No., Emp Adress, Date of Joining, UAN No., ESIC No., and one **Date of <checklist item>** column per active checklist item (a filled date marks that item Done).
++
++Rules worth knowing: duplicate emails (in the file, or an existing login/employee) are skipped; an Aadhar/PAN already used inside the organization blocks the row; invalid optional values are dropped with a warning; problem rows can be downloaded as a spreadsheet. The column list lives in `employees/bulk_import/columns.py`.
+diff --git a/employees/bulk_import/__init__.py b/employees/bulk_import/__init__.py
+new file mode 100644
+index 0000000..b2bcf99
+--- /dev/null
++++ b/employees/bulk_import/__init__.py
+@@ -0,0 +1,12 @@
++from .engine import (  # noqa: F401
++    ERROR,
++    MAX_DATA_ROWS,
++    MAX_UPLOAD_BYTES,
++    READY,
++    SKIP,
++    WARNING,
++    ImportReport,
++    RowResult,
++    analyze_rows,
++    parse_upload,
++)
+diff --git a/employees/bulk_import/batch.py b/employees/bulk_import/batch.py
+new file mode 100644
+index 0000000..319eb6e
+--- /dev/null
++++ b/employees/bulk_import/batch.py
+@@ -0,0 +1,65 @@
++"""
++Holds a validated preview between the "upload" request and the "confirm" request.
++
++The preview contains Aadhar / PAN / bank numbers, and Django sessions live in
++the database, so the payload is encrypted with the same Fernet key used for
++the encrypted model fields before it goes into the session.
++"""
++
++import json
++import uuid
++from datetime import date
++
++from employees.fields import FernetCipher
++
++SESSION_KEY = "employee_import_batch"
++
++
++def _text(value):
++    if value is None:
++        return ""
++    if isinstance(value, date):
++        return value.strftime("%d/%m/%Y")
++    return str(value)
++
++
++def report_to_payload(report):
++    return {
++        "columns": [{"key": c.key, "name": c.display_name} for c in report.columns],
++        "rows": [
++            {
++                "n": row.row_number,
++                "status": row.status,
++                "notes": row.notes,
++                "values": {key: _text(value) for key, value in row.values.items()},
++                "data": {
++                    key: value.isoformat() if isinstance(value, date) else value
++                    for key, value in row.data.items()
++                },
++                "checklist": {str(i): d.isoformat() for i, d in row.checklist.items()},
++            }
++            for row in report.rows
++        ],
++    }
++
++
++def store_batch(request, org_id, payload):
++    token = uuid.uuid4().hex
++    request.session[SESSION_KEY] = {
++        "token": token,
++        "org_id": org_id,
++        "blob": FernetCipher.encrypt(json.dumps(payload)),
++    }
++    return token
++
++
++def load_batch(request, org_id, token):
++    """The stored payload, or None if there is none / it belongs to another org / token is stale."""
++    stored = request.session.get(SESSION_KEY)
++    if not stored or not token or stored.get("token") != token or stored.get("org_id") != org_id:
++        return None
++    return json.loads(FernetCipher.decrypt(stored["blob"]))
++
++
++def clear_batch(request):
++    request.session.pop(SESSION_KEY, None)
+diff --git a/employees/bulk_import/cleaning.py b/employees/bulk_import/cleaning.py
+new file mode 100644
+index 0000000..655e347
+--- /dev/null
++++ b/employees/bulk_import/cleaning.py
+@@ -0,0 +1,153 @@
++"""
++Turn a raw spreadsheet cell into a clean value for one column.
++
++`clean_value(column, raw)` returns `(value, error)`:
++  - empty cell            -> (None, None)   (required-ness is the caller's job)
++  - valid                 -> (cleaned, None)
++  - invalid               -> (None, "message")
++
++Unlike the original importer, an invalid value ALWAYS returns an error, even
++for optional columns. The caller decides whether that blocks the row (required
++column) or becomes a warning and the value is dropped (optional column).
++"""
++
++import re
++from datetime import date, datetime
++
++from django.core.exceptions import ValidationError
++from django.core.validators import validate_email
++
++from accounts.lookup import PHONE_PATTERN
++from employees.validators import validate_aadhar, validate_pan
++
++from .columns import AADHAR, DATE, EMAIL, FULL_NAME, IFSC, PAN, PHONE, TEXT
++
++DATE_TOKEN_RE = re.compile(r"\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}")
++# Day-first (Indian convention) for the ambiguous numeric formats.
++DATE_FORMATS = ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%d.%m.%Y", "%Y.%m.%d")
++MIN_YEAR, MAX_YEAR = 1900, 2100
++
++# Login by phone matches on the last 10 digits (see accounts.lookup).
++PHONE_MIN_DIGITS = 10
++# Aadhar may be written 1234 5678 9012 or 1234-5678-9012; nothing else.
++AADHAR_ALLOWED_RE = re.compile(r"^[\d\s\-]+$")
++
++NAME_PART_MAX = 80  # Employee.first_name / last_name max_length
++
++
++def parse_date_cell(raw):
++    """Return (date | None, error | None). Accepts Excel dates and common text formats."""
++    if raw is None or (isinstance(raw, str) and not raw.strip()):
++        return None, None
++    if isinstance(raw, datetime):  # check before date: datetime subclasses date
++        parsed = raw.date()
++    elif isinstance(raw, date):
++        parsed = raw
++    else:
++        text = str(raw).strip()
++        match = DATE_TOKEN_RE.search(text)
++        candidate = match.group(0) if match else text.splitlines()[0].strip()
++        parsed = None
++        for fmt in DATE_FORMATS:
++            try:
++                parsed = datetime.strptime(candidate, fmt).date()
++                break
++            except ValueError:
++                continue
++        if parsed is None:
++            return None, f"Unrecognized date: {raw!r}"
++    if not (MIN_YEAR <= parsed.year <= MAX_YEAR):
++        return None, f"Date out of range: {raw!r}"
++    return parsed, None
++
++
++def _to_text(column, raw):
++    """Cell -> stripped text. Excel numbers come back as int/float; whole floats lose the '.0'."""
++    if raw is None:
++        return "", None
++    if isinstance(raw, bool):
++        return None, f"{column.display_name} has an unexpected value."
++    if isinstance(raw, (datetime, date)):
++        return None, f"{column.display_name} looks like a date, expected text or a number."
++    if isinstance(raw, float) and raw.is_integer():
++        raw = int(raw)
++    return str(raw).strip(), None
++
++
++def _too_long(column, text):
++    return column.max_length is not None and len(text) > column.max_length
++
++
++def _validator_error(validator, value):
++    try:
++        validator(value)
++    except ValidationError as exc:
++        return exc.messages[0]
++    return None
++
++
++def clean_value(column, raw):
++    if column.kind == DATE:
++        parsed, error = parse_date_cell(raw)
++        return (None, f"{column.display_name}: {error}") if error else (parsed, None)
++
++    text, error = _to_text(column, raw)
++    if error:
++        return None, error
++    if not text:
++        return None, None
++
++    if column.kind == FULL_NAME:
++        parts = " ".join(text.split()).split(" ", 1)
++        first, last = parts[0], parts[1] if len(parts) > 1 else ""
++        if len(first) > NAME_PART_MAX or len(last) > NAME_PART_MAX:
++            return None, f"{column.display_name} is too long."
++        return {"first_name": first, "last_name": last}, None
++
++    if column.kind == EMAIL:
++        email = text.lower()
++        if _too_long(column, email):
++            return None, f"{column.display_name} is too long (max {column.max_length} characters)."
++        try:
++            validate_email(email)
++        except ValidationError:
++            return None, f"{column.display_name} is not a valid email address."
++        return email, None
++
++    if column.kind == PHONE:
++        digits = re.sub(r"\D", "", text)
++        if not PHONE_PATTERN.match(text) or len(digits) < PHONE_MIN_DIGITS:
++            return None, (
++                f"{column.display_name} must contain at least {PHONE_MIN_DIGITS} digits "
++                "and no letters."
++            )
++        if _too_long(column, text):
++            return None, f"{column.display_name} is too long (max {column.max_length} characters)."
++        return text, None
++
++    if column.kind == AADHAR:
++        if not AADHAR_ALLOWED_RE.match(text):
++            return None, f"{column.display_name} may only contain digits, spaces and hyphens."
++        digits = re.sub(r"\D", "", text)
++        message = _validator_error(validate_aadhar, digits)
++        return (None, message) if message else (digits, None)
++
++    if column.kind == PAN:
++        pan = re.sub(r"\s+", "", text).upper()
++        message = _validator_error(validate_pan, pan)
++        return (None, message) if message else (pan, None)
++
++    if column.kind == IFSC:
++        ifsc = re.sub(r"\s+", "", text).upper()
++        if _too_long(column, ifsc):
++            return None, f"{column.display_name} is too long (max {column.max_length} characters)."
++        return ifsc, None
++
++    if column.kind == TEXT:
++        if not column.multiline:
++            text = " ".join(text.split())
++        if _too_long(column, text):
++            return None, f"{column.display_name} is too long (max {column.max_length} characters)."
++        return text, None
++
++    raise ValueError(f"Unknown column kind: {column.kind!r}")
+diff --git a/employees/bulk_import/columns.py b/employees/bulk_import/columns.py
+new file mode 100644
+index 0000000..7ca249c
+--- /dev/null
++++ b/employees/bulk_import/columns.py
+@@ -0,0 +1,150 @@
++"""
++Column definitions and header matching for the employee bulk import.
++
++The column list is plain Python (one place to edit). Header matching is
++forgiving: case, extra spaces and full stops are ignored, and each column can
++list aliases, so "PAN NO.", "Pan No" and "pan no" all match the same column.
++
++Besides the fixed columns, every ACTIVE checklist item of the organization gets
++a date column called "Date of <item name>" (e.g. "Date of AVSEC Training").
++"""
++
++from dataclasses import dataclass
++
++from employees.models import ChecklistItem
++
++# How many rows from the top are searched for the header row.
++HEADER_SCAN_ROWS = 5
++
++# Column kinds understood by employees.bulk_import.cleaning.clean_value
++FULL_NAME = "full_name"
++EMAIL = "email"
++TEXT = "text"
++PHONE = "phone"
++DATE = "date"
++AADHAR = "aadhar"
++PAN = "pan"
++IFSC = "ifsc"
++
++
++@dataclass(frozen=True)
++class ImportColumn:
++    key: str  # Employee field name, "full_name", or "checklist:<item id>"
++    label: str  # canonical header text
++    display_name: str  # shown in messages and the preview table
++    kind: str
++    required: bool = False
++    max_length: int | None = None
++    aliases: tuple[str, ...] = ()
++    multiline: bool = False
++    item_id: int | None = None  # set only for checklist columns
++
++    @property
++    def is_checklist(self):
++        return self.item_id is not None
++
++    @property
++    def all_labels(self):
++        return (self.label,) + self.aliases
++
++
++def normalize_label(value):
++    """Lower-case, drop full stops, collapse whitespace: 'PAN  NO.' -> 'pan no'."""
++    text = "" if value is None else str(value)
++    text = text.replace(".", "").replace("\xa0", " ")
++    return " ".join(text.lower().split())
++
++
++# Order here is the order of the preview table.
++STATIC_COLUMNS = (
++    ImportColumn("full_name", "Emp Name", "Employee Name", FULL_NAME, required=True,
++                 aliases=("Employee Name", "Name")),
++    ImportColumn("email", "Mail ID", "Email", EMAIL, required=True, max_length=150,
++                 aliases=("Email", "Email ID", "E-mail", "Mail")),
++    ImportColumn("phone", "Mobile No.", "Mobile Number", PHONE, max_length=50,
++                 aliases=("Mobile", "Mobile Number", "Phone", "Phone No.", "Contact No.")),
++    ImportColumn("designation", "Designation", "Designation", TEXT, max_length=100),
++    ImportColumn("aadhar_no", "Aadhar No.", "Aadhar Number", AADHAR,
++                 aliases=("Aadhaar No.", "Aadhar", "Aadhaar", "Aadhar Number")),
++    ImportColumn("pan_no", "PAN NO.", "PAN Number", PAN,
++                 aliases=("PAN", "PAN Number")),
++    ImportColumn("bank_name", "NAME OF BANK", "Bank Name", TEXT, max_length=100,
++                 aliases=("Bank Name", "Bank")),
++    ImportColumn("bank_account_no", "Bank A/C No.", "Bank Account No.", TEXT, max_length=50,
++                 aliases=("Bank Account No.", "Bank Account Number", "Account No.", "A/C No.")),
++    ImportColumn("ifsc_no", "IFSC No.", "IFSC Code", IFSC, max_length=20,
++                 aliases=("IFSC", "IFSC Code")),
++    # "Adress" is the spelling used in the existing sheets; both spellings match.
++    ImportColumn("address", "Emp Adress", "Address", TEXT, max_length=500, multiline=True,
++                 aliases=("Emp Address", "Address")),
++    ImportColumn("date_joined", "Date of Joining", "Date of Joining", DATE,
++                 aliases=("Joining Date", "DOJ")),
++    ImportColumn("uan_no", "UAN No.", "UAN Number", TEXT, max_length=50,
++                 aliases=("UAN", "UAN Number")),
++    ImportColumn("esic_no", "ESIC No.", "ESIC Number", TEXT, max_length=50,
++                 aliases=("ESIC", "ESIC Number", "ESI No.")),
++)
++
++
++def build_columns(organization):
++    """Static columns plus one date column per active checklist item."""
++    columns = list(STATIC_COLUMNS)
++    items = ChecklistItem.objects.filter(organization=organization, is_active=True)
++    for item in items:
++        columns.append(
++            ImportColumn(
++                key=f"checklist:{item.id}",
++                label=f"Date of {item.name}",
++                display_name=f"{item.name} (date)",
++                kind=DATE,
++                item_id=item.id,
++            )
++        )
++    return columns
++
++
++def _label_map(columns):
++    """normalized header text -> column. On a clash the earlier column wins."""
++    mapping = {}
++    for column in columns:
++        for label in column.all_labels:
++            mapping.setdefault(normalize_label(label), column)
++    return mapping
++
++
++def find_header_row(rows, columns):
++    """Index of the first row (within HEADER_SCAN_ROWS) containing every required column, else None."""
++    required = [c for c in columns if c.required]
++    for index, row in enumerate(rows[:HEADER_SCAN_ROWS]):
++        cells = {normalize_label(cell) for cell in row if cell is not None}
++        if required and all(
++            any(normalize_label(label) in cells for label in column.all_labels)
++            for column in required
++        ):
++            return index
++    return None
++
++
++def match_headers(header_row, columns):
++    """
++    Map columns to sheet positions.
++
++    Returns (positions, ignored, duplicates):
++      positions   {column.key: index in the row}
++      ignored     header texts that matched no column (typos, extra columns)
++      duplicates  header texts that repeat a column already matched
++    """
++    label_map = _label_map(columns)
++    positions, ignored, duplicates = {}, [], []
++    for index, cell in enumerate(header_row):
++        normalized = normalize_label(cell)
++        if not normalized:
++            continue
++        column = label_map.get(normalized)
++        if column is None:
++            ignored.append(str(cell).strip())
++        elif column.key in positions:
++            duplicates.append(str(cell).strip())
++        else:
++            positions[column.key] = index
++    return positions, ignored, duplicates
+diff --git a/employees/bulk_import/commit.py b/employees/bulk_import/commit.py
+new file mode 100644
+index 0000000..912788c
+--- /dev/null
++++ b/employees/bulk_import/commit.py
+@@ -0,0 +1,86 @@
++"""
++Apply a previewed import: create each employee, give them a login, set checklist dates.
++
++Every row runs in its own savepoint, so one bad row is reported and the rest
++still import (instead of one error rolling back / crashing the whole batch).
++Conflicts are re-checked here because the data may have changed since the preview.
++"""
++
++import logging
++from dataclasses import dataclass, field
++from datetime import date
++
++from django.db import transaction
++
++from accounts.services import GrantLoginError, grant_login
++from employees.checklist import set_checklist_status
++from employees.models import CHECKLIST_DONE, ChecklistItem, Employee
++
++from .engine import READY, WARNING, OrganizationIndex
++
++logger = logging.getLogger(__name__)
++
++
++class RowFailed(Exception):
++    pass
++
++
++@dataclass
++class CommitResult:
++    created: list = field(default_factory=list)  # (row number, employee id, email)
++    failed: list = field(default_factory=list)  # (row number, reason)
++
++
++def _conflict(data, index):
++    email = data["email"]
++    if email in index.email:
++        return f"An employee with this email already exists ({index.email[email]})."
++    for key, label in (("aadhar_no", "Aadhar No."), ("pan_no", "PAN No.")):
++        value = data.get(key)
++        if value and value in getattr(index, key):
++            return f"{label} already belongs to employee {getattr(index, key)[value]}."
++    return None
++
++
++def commit_rows(payload_rows, organization, marked_by):
++    result = CommitResult()
++    index = OrganizationIndex(organization)
++    items = {item.id: item for item in ChecklistItem.objects.filter(organization=organization)}
++
++    for row in payload_rows:
++        if row["status"] not in (READY, WARNING):
++            continue
++        data = dict(row["data"])
++        if data.get("date_joined"):
++            data["date_joined"] = date.fromisoformat(data["date_joined"])
++        checklist = {int(k): date.fromisoformat(v) for k, v in row["checklist"].items()}
++
++        try:
++            with transaction.atomic():
++                message = _conflict(data, index)
++                if message:
++                    raise RowFailed(message)
++                employee = Employee(organization=organization, **data)
++                employee.save()
++                grant_login(employee)
++                for item_id, done_on in checklist.items():
++                    item = items.get(item_id)
++                    if item is not None:
++                        set_checklist_status(
++                            employee, item, CHECKLIST_DONE,
++                            completed_on=done_on, marked_by=marked_by,
++                        )
++        except (RowFailed, GrantLoginError) as exc:
++            result.failed.append((row["n"], str(exc)))
++            continue
++        except Exception:
++            logger.exception("Bulk import: row %s failed", row["n"])
++            result.failed.append((row["n"], "Unexpected error. This row was not imported."))
++            continue
++
++        index.email[data["email"]] = employee.employee_id
++        for key in ("aadhar_no", "pan_no"):
++            if data.get(key):
++                getattr(index, key)[data[key]] = employee.employee_id
++        result.created.append((row["n"], employee.employee_id, data["email"]))
++    return result
+diff --git a/employees/bulk_import/engine.py b/employees/bulk_import/engine.py
+new file mode 100644
+index 0000000..241692d
+--- /dev/null
++++ b/employees/bulk_import/engine.py
+@@ -0,0 +1,333 @@
++"""
++Bulk import engine: read a sheet, validate every row, report what would happen.
++
++Nothing here writes to the database. `parse_upload()` / `analyze_rows()` return
++an ImportReport that the preview screen renders and the confirm step (added
++separately) commits.
++
++Row statuses
++  ERROR    blocked: a required value is missing/invalid, or an Aadhar/PAN clashes
++  SKIP     duplicate person: email already in this file, an existing login, or an
++           existing employee in this organization
++  WARNING  importable, but an optional value was invalid and has been dropped
++  READY    clean
++
++Only rows that will actually be imported (READY / WARNING) register their
++email / Aadhar / PAN / phone, so an erroneous row never "uses up" an identifier.
++"""
++
++import logging
++import re
++from dataclasses import dataclass, field
++from datetime import date, datetime
++
++from django.contrib.auth import get_user_model
++from django.db.models.functions import Lower
++from openpyxl import load_workbook
++
++from employees.models import Employee
++
++from .cleaning import PHONE_MIN_DIGITS, clean_value
++from .columns import build_columns, find_header_row, match_headers, HEADER_SCAN_ROWS
++
++logger = logging.getLogger(__name__)
++User = get_user_model()
++
++MAX_UPLOAD_BYTES = 5 * 1024 * 1024
++MAX_DATA_ROWS = 500
++MAX_SCANNED_ROWS = 20000  # guards against sheets with huge blocks of formatted empty rows
++
++READY, WARNING, SKIP, ERROR = "READY", "WARNING", "SKIP", "ERROR"
++
++
++@dataclass
++class RowResult:
++    row_number: int  # the row number as shown in Excel
++    values: dict = field(default_factory=dict)  # column.key -> what the preview shows
++    data: dict = field(default_factory=dict)  # Employee field -> cleaned value (for the commit)
++    checklist: dict = field(default_factory=dict)  # checklist item id -> completion date
++    errors: list = field(default_factory=list)  # block the row
++    skips: list = field(default_factory=list)  # duplicate person: row is skipped
++    warnings: list = field(default_factory=list)  # informational; row still imports
++
++    @property
++    def status(self):
++        if self.errors:
++            return ERROR
++        if self.skips:
++            return SKIP
++        if self.warnings:
++            return WARNING
++        return READY
++
++    @property
++    def importable(self):
++        return self.status in (READY, WARNING)
++
++    @property
++    def notes(self):
++        return self.errors + self.skips + self.warnings
++
++
++@dataclass
++class ImportReport:
++    columns: list = field(default_factory=list)  # columns present in the sheet, in display order
++    rows: list = field(default_factory=list)
++    file_errors: list = field(default_factory=list)  # fatal: nothing can be imported
++    notices: list = field(default_factory=list)  # non-fatal remarks about the sheet itself
++
++    @property
++    def ok(self):
++        return not self.file_errors
++
++    @property
++    def importable_rows(self):
++        return [row for row in self.rows if row.importable]
++
++    @property
++    def counts(self):
++        counts = {READY: 0, WARNING: 0, SKIP: 0, ERROR: 0}
++        for row in self.rows:
++            counts[row.status] += 1
++        return counts
++
++
++# ---------------------------------------------------------------------------
++# Reading the file
++# ---------------------------------------------------------------------------
++
++def read_workbook_rows(file_obj):
++    """Return (rows, error). `rows` is a list of lists of raw cell values."""
++    size = getattr(file_obj, "size", None)
++    if size is not None and size > MAX_UPLOAD_BYTES:
++        return None, f"The file is too large (maximum {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)."
++    try:
++        workbook = load_workbook(file_obj, read_only=True, data_only=True)
++    except Exception:  # openpyxl raises many types (BadZipFile, InvalidFileException, ...)
++        logger.exception("Bulk import: could not open workbook")
++        return None, "Could not read this file. Please upload a valid .xlsx Excel file."
++    try:
++        sheet = workbook.active
++        if sheet is None:
++            return None, "The workbook has no sheets."
++        rows = []
++        for index, row in enumerate(sheet.iter_rows(values_only=True)):
++            if index >= MAX_SCANNED_ROWS:
++                return None, "The sheet is too large to import."
++            rows.append(list(row))
++        return rows, None
++    except Exception:
++        logger.exception("Bulk import: could not read sheet")
++        return None, "Could not read this file. Please upload a valid .xlsx Excel file."
++    finally:
++        workbook.close()
++
++
++def parse_upload(file_obj, organization):
++    """Read an uploaded .xlsx and analyze it. Always returns an ImportReport."""
++    rows, error = read_workbook_rows(file_obj)
++    if error:
++        return ImportReport(file_errors=[error])
++    return analyze_rows(rows, organization)
++
++
++# ---------------------------------------------------------------------------
++# Analysis
++# ---------------------------------------------------------------------------
++
++def _is_blank(row):
++    return not any(cell is not None and str(cell).strip() for cell in row)
++
++
++def _display(raw):
++    if raw is None:
++        return ""
++    if isinstance(raw, datetime):
++        return raw.date().isoformat()
++    if isinstance(raw, date):
++        return raw.isoformat()
++    if isinstance(raw, float) and raw.is_integer():
++        return str(int(raw))
++    return str(raw).strip()
++
++
++def _phone_key(phone):
++    digits = re.sub(r"\D", "", phone or "")
++    return digits[-PHONE_MIN_DIGITS:] if len(digits) >= PHONE_MIN_DIGITS else ""
++
++
++def analyze_rows(rows, organization):
++    report = ImportReport()
++    columns = build_columns(organization)
++
++    header_index = find_header_row(rows, columns)
++    if header_index is None:
++        required = ", ".join(c.label for c in columns if c.required)
++        report.file_errors.append(
++            f"Could not find the header row in the first {HEADER_SCAN_ROWS} rows. "
++            f"Required columns: {required}."
++        )
++        return report
++
++    positions, ignored, duplicates = match_headers(rows[header_index], columns)
++    report.columns = [c for c in columns if c.key in positions]
++    if ignored:
++        report.notices.append("Ignored columns (not recognised): " + ", ".join(ignored) + ".")
++    for label in duplicates:
++        report.notices.append(f"Column '{label}' appears more than once; only the first is used.")
++
++    data_rows = [
++        (number, row)
++        for number, row in enumerate(rows, start=1)
++        if number > header_index + 1 and not _is_blank(row)
++    ]
++    if not data_rows:
++        report.file_errors.append("No employee rows were found below the header.")
++        return report
++    if len(data_rows) > MAX_DATA_ROWS:
++        report.file_errors.append(
++            f"The sheet has {len(data_rows)} employee rows; the maximum per import is "
++            f"{MAX_DATA_ROWS}. Please split the file."
++        )
++        return report
++
++    results = [_clean_row(number, row, report.columns, positions) for number, row in data_rows]
++    _apply_duplicate_checks(results, organization)
++    report.rows = results
++    return report
++
++
++def _clean_row(number, row, columns, positions):
++    result = RowResult(row_number=number)
++    for column in columns:
++        index = positions[column.key]
++        raw = row[index] if index < len(row) else None
++        value, error = clean_value(column, raw)
++
++        if error is None and value is None and column.required:
++            error = f"{column.display_name} is required."
++
++        # Preview shows the cleaned value; for empty/invalid cells (and the
++        # split full name) it shows what was in the sheet.
++        if error or value is None or isinstance(value, dict):
++            result.values[column.key] = _display(raw)
++        else:
++            result.values[column.key] = value
++
++        if error:
++            if column.required:
++                result.errors.append(error)
++            else:
++                result.warnings.append(f"{error} Skipped; the row is still imported.")
++            continue
++        if value is None:
++            continue
++
++        if column.kind == "full_name":
++            result.data.update(value)
++        elif column.is_checklist:
++            result.checklist[column.item_id] = value
++        else:
++            result.data[column.key] = value
++    return result
++
++
++# ---------------------------------------------------------------------------
++# Duplicate detection (fixed number of queries, independent of row count)
++# ---------------------------------------------------------------------------
++
++def _existing_login_emails(emails):
++    """Which of `emails` already belong to a User (as email or username), any organization."""
++    if not emails:
++        return set()
++    wanted = list(emails)
++    found = set(
++        User.objects.annotate(e=Lower("email")).filter(e__in=wanted).values_list("e", flat=True)
++    )
++    found |= set(
++        User.objects.annotate(u=Lower("username")).filter(u__in=wanted).values_list("u", flat=True)
++    )
++    return found
++
++
++class OrganizationIndex:
++    """Identifiers of the organization's existing employees, compared in Python (they're encrypted)."""
++
++    def __init__(self, organization):
++        self.email, self.aadhar_no, self.pan_no, self.phone = {}, {}, {}, {}
++        employees = Employee.objects.filter(organization=organization).only(
++            "employee_id", "email", "phone", "aadhar_no", "pan_no"
++        )
++        for employee in employees:
++            email = (employee.email or "").strip().lower()
++            if email:
++                self.email[email] = employee.employee_id
++            if employee.aadhar_no:
++                self.aadhar_no[employee.aadhar_no] = employee.employee_id
++            if employee.pan_no:
++                self.pan_no[employee.pan_no.upper()] = employee.employee_id
++            phone = _phone_key(employee.phone)
++            if phone:
++                self.phone.setdefault(phone, employee.employee_id)
++
++
++def _apply_duplicate_checks(results, organization):
++    candidates = [r for r in results if not r.errors and r.data.get("email")]
++    login_emails = _existing_login_emails({r.data["email"] for r in candidates})
++    existing = OrganizationIndex(organization)
++
++    seen = {"email": {}, "aadhar_no": {}, "pan_no": {}, "phone": {}}
++
++    for result in results:
++        if result.errors:
++            continue
++        email = result.data["email"]
++
++        if email in seen["email"]:
++            result.skips.append(
++                f"Duplicate of row {seen['email'][email]} in this file. Will be skipped."
++            )
++            continue
++        if email in login_emails:
++            result.skips.append("An account with this email already exists. Will be skipped.")
++            continue
++        if email in existing.email:
++            result.skips.append(
++                f"An employee with this email already exists ({existing.email[email]}). "
++                "Will be skipped."
++            )
++            continue
++
++        for key, label in (("aadhar_no", "Aadhar No."), ("pan_no", "PAN No.")):
++            value = result.data.get(key)
++            if not value:
++                continue
++            if value in seen[key]:
++                result.errors.append(f"{label} is also on row {seen[key][value]} of this file.")
++            elif value in getattr(existing, key):
++                result.errors.append(
++                    f"{label} already belongs to employee {getattr(existing, key)[value]}."
++                )
++        if result.errors:
++            continue
++
++        phone = _phone_key(result.data.get("phone"))
++        if phone:
++            if phone in seen["phone"]:
++                result.warnings.append(
++                    f"Mobile No. is also on row {seen['phone'][phone]}; "
++                    "logging in by phone won't work for either person."
++                )
++            elif phone in existing.phone:
++                result.warnings.append(
++                    f"Mobile No. is already used by employee {existing.phone[phone]}; "
++                    "logging in by phone won't work for either person."
++                )
++
++        # Only importable rows register their identifiers.
++        seen["email"][email] = result.row_number
++        for key in ("aadhar_no", "pan_no"):
++            if result.data.get(key):
++                seen[key][result.data[key]] = result.row_number
++        if phone:
++            seen["phone"].setdefault(phone, result.row_number)
+diff --git a/employees/bulk_import/files.py b/employees/bulk_import/files.py
+new file mode 100644
+index 0000000..97d5a8e
+--- /dev/null
++++ b/employees/bulk_import/files.py
+@@ -0,0 +1,69 @@
++"""Downloadable .xlsx files: the blank template and the "rows with problems" report."""
++
++from io import BytesIO
++
++from openpyxl import Workbook
++from openpyxl.styles import Font
++
++from .columns import DATE
++from .engine import ERROR, SKIP
++
++
++def _put(sheet, row, column, value):
++    cell = sheet.cell(row=row, column=column, value=value)
++    if isinstance(value, str):
++        cell.data_type = "s"  # never let a value like "=1+1" become a formula
++    return cell
++
++
++def _to_bytes(workbook):
++    buffer = BytesIO()
++    workbook.save(buffer)
++    return buffer.getvalue()
++
++
++def build_template(columns):
++    workbook = Workbook()
++    sheet = workbook.active
++    sheet.title = "Employees"
++    for number, column in enumerate(columns, start=1):
++        _put(sheet, 1, number, column.label).font = Font(bold=True)
++        sheet.column_dimensions[sheet.cell(row=1, column=number).column_letter].width = max(
++            16, len(column.label) + 4
++        )
++    sheet.freeze_panes = "A2"
++
++    guide = workbook.create_sheet("Instructions")
++    _put(guide, 1, 1, "Column").font = Font(bold=True)
++    _put(guide, 1, 2, "Required").font = Font(bold=True)
++    _put(guide, 1, 3, "Notes").font = Font(bold=True)
++    for number, column in enumerate(columns, start=2):
++        _put(guide, number, 1, column.label)
++        _put(guide, number, 2, "Yes" if column.required else "")
++        note = "Date, e.g. 31/03/2026 (a filled date marks the checklist item Done)" if (
++            column.is_checklist
++        ) else "Date, e.g. 31/03/2026" if column.kind == DATE else ""
++        _put(guide, number, 3, note)
++    guide.column_dimensions["A"].width = 34
++    guide.column_dimensions["C"].width = 60
++    return _to_bytes(workbook)
++
++
++def build_problem_report(payload):
++    workbook = Workbook()
++    sheet = workbook.active
++    sheet.title = "Rows with problems"
++    headers = ["Row", "Status"] + [c["name"] for c in payload["columns"]] + ["Notes"]
++    for number, header in enumerate(headers, start=1):
++        _put(sheet, 1, number, header).font = Font(bold=True)
++    line = 2
++    for row in payload["rows"]:
++        if row["status"] not in (ERROR, SKIP):
++            continue
++        cells = [row["n"], row["status"]]
++        cells += [row["values"].get(c["key"], "") for c in payload["columns"]]
++        cells.append(" | ".join(row["notes"]))
++        for number, value in enumerate(cells, start=1):
++            _put(sheet, line, number, value)
++        line += 1
++    return _to_bytes(workbook)
+diff --git a/employees/forms.py b/employees/forms.py
+index 9646334..4d58681 100644
+--- a/employees/forms.py
++++ b/employees/forms.py
+@@ -3,6 +3,7 @@ from django.db import transaction
+ from django.db.models import Q
+ 
+ from organizations.models import OrganizationMember
++from .bulk_import import MAX_UPLOAD_BYTES
+ from .models import Employee, Attendance, Leave
+ 
+ # What the admin sees  ->  what is stored in OrganizationMember.role
+@@ -222,4 +223,18 @@ class LeaveForm(forms.ModelForm):
+         widgets = {
+             "start_date": forms.DateInput(attrs={"type": "date"}),
+             "end_date": forms.DateInput(attrs={"type": "date"}),
+-        }
+\ No newline at end of file
++        }
++
++
++class EmployeeImportUploadForm(forms.Form):
++    file = forms.FileField(label="Excel file (.xlsx)")
++
++    def clean_file(self):
++        upload = self.cleaned_data["file"]
++        if not upload.name.lower().endswith(".xlsx"):
++            raise forms.ValidationError("Please upload an .xlsx Excel file.")
++        if upload.size > MAX_UPLOAD_BYTES:
++            raise forms.ValidationError(
++                f"The file is too large (maximum {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)."
++            )
++        return upload
+diff --git a/employees/test_bulk_import.py b/employees/test_bulk_import.py
+new file mode 100644
+index 0000000..fbf5817
+--- /dev/null
++++ b/employees/test_bulk_import.py
+@@ -0,0 +1,276 @@
++from datetime import date, datetime
++from io import BytesIO
++
++from django.contrib.auth import get_user_model
++from django.core import mail
++from django.core.files.uploadedfile import SimpleUploadedFile
++from django.db import connection
++from django.test import TestCase
++from django.test.utils import CaptureQueriesContext
++from django.urls import reverse
++from openpyxl import Workbook, load_workbook
++
++from employees.bulk_import import ERROR, READY, SKIP, WARNING, analyze_rows, parse_upload
++from employees.models import ChecklistItem, Employee, EmployeeChecklistEntry
++from organizations.models import Organization, OrganizationMember
++
++User = get_user_model()
++
++HEADER = ["Emp Name", "Mail ID", "Mobile No.", "Designation", "Aadhar No.", "PAN NO.",
++          "NAME OF BANK", "Bank A/C No.", "IFSC No.", "Emp Adress", "Date of Joining",
++          "Date of AVSEC Training", "Date of Police Verification", "UAN No.", "ESIC No."]
++KEYS = ["name", "mail", "phone", "desig", "aadhar", "pan", "bank", "acct", "ifsc", "addr",
++        "doj", "avsec", "police", "uan", "esic"]
++
++
++def row(**kw):
++    kw.setdefault("name", "Asha Rao")
++    kw.setdefault("mail", "asha@example.com")
++    return [kw.get(k) for k in KEYS]
++
++
++def sheet(*rows, header=HEADER, above=0):
++    return [["Title row"] + [None] * 14 for _ in range(above)] + [header] + list(rows)
++
++
++class EngineBase(TestCase):
++    def setUp(self):
++        self.owner = User.objects.create_user("owner", password="pw-owner-123")
++        self.org = Organization.objects.create(name="Acme", created_by=self.owner)
++        self.other_org = Organization.objects.create(name="Other", created_by=self.owner)
++
++    def run_rows(self, *rows, **kw):
++        return analyze_rows(sheet(*rows, **kw), self.org)
++
++
++class HeaderAndCleaningTests(EngineBase):
++    def test_header_found_below_title_rows_and_case_insensitive(self):
++        header = [h.lower() for h in HEADER]
++        report = analyze_rows(sheet(row(), header=header, above=2), self.org)
++        self.assertTrue(report.ok)
++        self.assertEqual(report.rows[0].row_number, 4)  # sheet row numbers
++
++    def test_missing_required_column_is_a_file_error(self):
++        report = analyze_rows([["Emp Name", "Phone"], ["A", "1"]], self.org)
++        self.assertFalse(report.ok)
++        self.assertIn("Mail ID", report.file_errors[0])
++
++    def test_aliases_and_unrecognised_columns(self):
++        report = analyze_rows([["Employee Name", "Email", "Pan No", "Weird"], ["Asha Rao", "a@x.com", "abcde1234f", "z"]], self.org)
++        self.assertEqual(report.rows[0].data["pan_no"], "ABCDE1234F")
++        self.assertIn("Weird", report.notices[0])
++
++    def test_full_row_cleaned(self):
++        r = self.run_rows(row(name="  Asha   Devi Rao ", mail="ASHA@Example.com", phone=9876543210.0,
++                              aadhar="1234 5678 9012", pan="abcde1234f", ifsc="sbin 0001234",
++                              doj="31/03/2026", avsec=datetime(2026, 1, 5), addr="12 MG Road"))
++        result = r.rows[0]
++        self.assertEqual(result.status, READY)
++        self.assertEqual(result.data["first_name"], "Asha")
++        self.assertEqual(result.data["last_name"], "Devi Rao")
++        self.assertEqual(result.data["email"], "asha@example.com")
++        self.assertEqual(result.data["phone"], "9876543210")
++        self.assertEqual(result.data["aadhar_no"], "123456789012")
++        self.assertEqual(result.data["ifsc_no"], "SBIN0001234")
++        self.assertEqual(result.data["date_joined"], date(2026, 3, 31))
++        avsec = ChecklistItem.objects.get(organization=self.org, name="AVSEC Training")
++        self.assertEqual(result.checklist, {avsec.id: date(2026, 1, 5)})
++
++    def test_required_fields_block_the_row(self):
++        for bad in (row(name=None), row(mail=None), row(mail="not-an-email")):
++            self.assertEqual(self.run_rows(bad).rows[0].status, ERROR)
++
++    def test_invalid_optional_values_warn_and_are_dropped(self):
++        result = self.run_rows(row(aadhar="12345", pan="BAD", doj="not a date", phone="abc")).rows[0]
++        self.assertEqual(result.status, WARNING)  # the original importer showed READY here
++        self.assertEqual(len(result.warnings), 4)
++        for key in ("aadhar_no", "pan_no", "date_joined", "phone"):
++            self.assertNotIn(key, result.data)
++
++    def test_aadhar_with_letters_is_rejected_not_silently_stripped(self):
++        self.assertEqual(self.run_rows(row(aadhar="ab123456789012")).rows[0].status, WARNING)
++
++    def test_all_supported_date_formats(self):
++        for text in ("2026-03-31", "31-03-2026", "31/03/2026", "31.03.2026", "2026.03.31", "31/03/2026 00:00"):
++            self.assertEqual(self.run_rows(row(doj=text)).rows[0].data["date_joined"], date(2026, 3, 31), text)
++
++    def test_date_in_a_text_column_is_a_warning(self):
++        self.assertEqual(self.run_rows(row(desig=datetime(2026, 1, 1))).rows[0].status, WARNING)
++
++    def test_blank_rows_skipped_and_row_cap(self):
++        report = self.run_rows(row(), [None] * 15, row(mail="b@x.com"))
++        self.assertEqual(len(report.rows), 2)
++        many = [row(mail=f"u{i}@x.com") for i in range(501)]
++        self.assertIn("maximum", self.run_rows(*many).file_errors[0])
++
++    def test_custom_and_inactive_checklist_columns(self):
++        custom = ChecklistItem.objects.create(organization=self.org, name="Offer letter", order=50)
++        ChecklistItem.objects.filter(organization=self.org, name="Police Verification").update(is_active=False)
++        header = HEADER + ["Date of Offer letter"]
++        report = analyze_rows(sheet(row(police="01/01/2026") + ["02/02/2026"], header=header), self.org)
++        self.assertEqual(report.rows[0].checklist, {custom.id: date(2026, 2, 2)})  # police column ignored
++        self.assertIn("Date of Police Verification", report.notices[0])
++
++
++class DuplicateTests(EngineBase):
++    def test_duplicate_email_in_file_skips_the_later_row(self):
++        report = self.run_rows(row(), row(mail="ASHA@example.com", name="Other"))
++        self.assertEqual([r.status for r in report.rows], [READY, SKIP])
++
++    def test_existing_login_and_existing_employee_are_skipped(self):
++        User.objects.create_user("login@example.com", email="login@example.com")
++        Employee.objects.create(organization=self.org, first_name="Old", email="old@example.com")
++        report = self.run_rows(row(mail="login@example.com"), row(mail="old@example.com"), row(mail="new@example.com"))
++        self.assertEqual([r.status for r in report.rows], [SKIP, SKIP, READY])
++
++    def test_aadhar_and_pan_clashes_block_but_only_within_the_organization(self):
++        Employee.objects.create(organization=self.org, first_name="Old", aadhar_no="123456789012", pan_no="ABCDE1234F")
++        Employee.objects.create(organization=self.other_org, first_name="Far", aadhar_no="999999999999")
++        report = self.run_rows(
++            row(mail="a@x.com", aadhar="123456789012"),
++            row(mail="b@x.com", pan="ABCDE1234F"),
++            row(mail="c@x.com", aadhar="999999999999"),          # other org -> fine
++            row(mail="d@x.com", aadhar="111122223333"),
++            row(mail="e@x.com", aadhar="111122223333"),          # clashes with row above in file
++        )
++        self.assertEqual([r.status for r in report.rows], [ERROR, ERROR, READY, READY, ERROR])
++
++    def test_errored_row_does_not_reserve_its_identifiers(self):
++        report = self.run_rows(row(name=None, aadhar="111122223333"), row(mail="b@x.com", aadhar="111122223333"))
++        self.assertEqual([r.status for r in report.rows], [ERROR, READY])
++
++    def test_shared_phone_warns(self):
++        report = self.run_rows(row(phone="9876543210"), row(mail="b@x.com", phone="+91 98765 43210"))
++        self.assertEqual([r.status for r in report.rows], [READY, WARNING])
++
++    def test_query_count_does_not_grow_with_rows(self):
++        def queries(n):
++            with CaptureQueriesContext(connection) as ctx:
++                self.run_rows(*[row(mail=f"u{i}@x.com") for i in range(n)])
++            return len(ctx)
++        self.assertEqual(queries(3), queries(60))
++
++
++def xlsx_bytes(rows):
++    wb = Workbook()
++    ws = wb.active
++    for r in rows:
++        ws.append(r)
++    for excel_row in ws.iter_rows():
++        for cell in excel_row:
++            if isinstance(cell.value, str):
++                cell.data_type = "s"  # keep "=..." as literal text, not a formula
++    buf = BytesIO()
++    wb.save(buf)
++    return buf.getvalue()
++
++
++def upload(rows, name="staff.xlsx"):
++    return SimpleUploadedFile(name, xlsx_bytes(rows))
++
++
++class FileReadingTests(EngineBase):
++    def test_reads_real_xlsx(self):
++        report = parse_upload(upload(sheet(row(doj=datetime(2026, 3, 31)))), self.org)
++        self.assertTrue(report.ok)
++        self.assertEqual(report.rows[0].data["date_joined"], date(2026, 3, 31))
++
++    def test_garbage_file_is_a_friendly_error_not_an_exception(self):
++        report = parse_upload(SimpleUploadedFile("x.xlsx", b"this is not excel"), self.org)
++        self.assertIn("valid .xlsx", report.file_errors[0])
++
++
++class ImportFlowTests(TestCase):
++    def setUp(self):
++        self.owner = User.objects.create_user("owner", password="pw-owner-123")
++        self.org = Organization.objects.create(name="Acme", created_by=self.owner)
++        OrganizationMember.objects.create(organization=self.org, user=self.owner, role="owner")
++        self.url = reverse("employee_import", args=[self.org.id])
++        self.client.force_login(self.owner)
++
++    def preview(self, *rows):
++        return self.client.post(self.url, {"file": upload(sheet(*rows))})
++
++    def confirm(self, response):
++        return self.client.post(self.url, {"action": "confirm", "token": response.context["token"]})
++
++    def test_full_flow_creates_employee_login_membership_and_checklist(self):
++        response = self.preview(row(phone="9876543210", aadhar="123456789012", avsec="05/01/2026"),
++                                row(mail="bad", name="Bad Row"))
++        self.assertEqual(response.context["importable"], 1)
++        self.assertEqual(response.context["problems"], 1)
++        result = self.confirm(response).context["result"]
++        self.assertEqual(len(result.created), 1)
++
++        emp = Employee.objects.get(organization=self.org, user__email="asha@example.com")
++        self.assertEqual(emp.aadhar_no, "123456789012")
++        user = emp.user
++        self.assertFalse(user.has_usable_password())
++        self.assertEqual(OrganizationMember.objects.get(user=user, organization=self.org).role, "member")
++        entry = EmployeeChecklistEntry.objects.get(employee=emp, item__name="AVSEC Training")
++        self.assertEqual((entry.status, entry.completed_on, entry.marked_by), ("done", date(2026, 1, 5), self.owner))
++        self.assertEqual(Employee.objects.filter(organization=self.org).count(), 2)  # owner + Asha, no duplicates
++
++    def test_imported_employee_is_guided_to_set_a_password(self):
++        self.confirm(self.preview(row()))
++        self.client.logout()
++        response = self.client.post(reverse("login"), {"identifier": "asha@example.com"})
++        self.assertRedirects(response, reverse("login_setup_pending"))
++        self.client.post(reverse("login_setup_pending"))
++        self.assertEqual(len(mail.outbox), 1)
++        self.assertIn("asha@example.com", mail.outbox[0].to)
++
++    def test_confirm_twice_or_with_bad_token_imports_nothing_more(self):
++        response = self.preview(row())
++        self.confirm(response)
++        again = self.confirm(response)
++        self.assertEqual(again.status_code, 302)
++        bad = self.client.post(self.url, {"action": "confirm", "token": "nope"})
++        self.assertEqual(bad.status_code, 302)
++        self.assertEqual(Employee.objects.filter(user__email="asha@example.com").count(), 1)
++
++    def test_conflict_created_after_preview_fails_only_that_row(self):
++        response = self.preview(row(mail="a@x.com", aadhar="111122223333"), row(mail="b@x.com"))
++        Employee.objects.create(organization=self.org, first_name="Sneaky", aadhar_no="111122223333")
++        result = self.confirm(response).context["result"]
++        self.assertEqual([n for n, *_ in result.created], [3])
++        self.assertEqual(len(result.failed), 1)
++        self.assertIn("Aadhar", result.failed[0][1])
++
++    def test_session_payload_is_encrypted(self):
++        self.preview(row(aadhar="123456789012"))
++        blob = self.client.session["employee_import_batch"]["blob"]
++        self.assertNotIn("123456789012", blob)
++        self.assertNotIn("asha@example.com", blob)
++
++    def test_downloads(self):
++        response = self.preview(row(), row(mail="bad"))
++        problems = self.client.get(reverse("employee_import_problems", args=[self.org.id]) + f"?token={response.context['token']}")
++        ws = load_workbook(BytesIO(problems.content)).active
++        self.assertEqual(ws.max_row, 2)  # header + the one bad row
++        template = self.client.get(reverse("employee_import_template", args=[self.org.id]))
++        headers = [c.value for c in load_workbook(BytesIO(template.content)).worksheets[0][1]]
++        self.assertIn("Mail ID", headers)
++        self.assertIn("Date of AVSEC Training", headers)
++
++    def test_formula_like_values_are_not_written_as_formulas(self):
++        response = self.preview(row(name="=HYPERLINK(\"x\")", mail="bad"))
++        problems = self.client.get(reverse("employee_import_problems", args=[self.org.id]) + f"?token={response.context['token']}")
++        cell = load_workbook(BytesIO(problems.content)).active["C2"]
++        self.assertNotEqual(cell.data_type, "f")  # stored as text, not a formula
++        self.assertTrue(cell.value.startswith("=HYPERLINK"))
++
++    def test_only_admins_can_use_it(self):
++        for role in ("manager", "member"):
++            user = User.objects.create_user(role, password="pw-test-12345")
++            OrganizationMember.objects.create(organization=self.org, user=user, role=role)
++            self.client.force_login(user)
++            for name in ("employee_import", "employee_import_template", "employee_import_problems"):
++                self.assertEqual(self.client.get(reverse(name, args=[self.org.id])).status_code, 302, (role, name))
++            self.assertEqual(self.client.post(self.url, {"file": upload(sheet(row()))}).status_code, 302)
++        self.assertFalse(Employee.objects.filter(user__email="asha@example.com").exists())
++
++    def test_wrong_extension_and_button_visibility(self):
++        response = self.client.post(self.url, {"file": SimpleUploadedFile("staff.csv", b"a,b")})
++        self.assertContains(response, "Please upload an .xlsx")
++        self.assertContains(self.client.get(reverse("employee_list", args=[self.org.id])), "Import employees")
+diff --git a/employees/urls.py b/employees/urls.py
+index 4cef5e7..4f6af51 100644
+--- a/employees/urls.py
++++ b/employees/urls.py
+@@ -26,6 +26,9 @@ from . import views
+ urlpatterns = [
+     path("org/<int:org_id>/employees/", views.employee_list, name="employee_list"),
+     path("org/<int:org_id>/employees/create/", views.employee_create, name="employee_create"),
++    path("org/<int:org_id>/employees/import/", views.employee_import, name="employee_import"),
++    path("org/<int:org_id>/employees/import/template/", views.employee_import_template, name="employee_import_template"),
++    path("org/<int:org_id>/employees/import/problems/", views.employee_import_problems, name="employee_import_problems"),
+     path("employees/<uuid:uuid>/", views.employee_detail, name="employee_detail"),
+     path("org/<int:org_id>/payroll/", views.payroll, name="payroll"),
+     path("org/<int:org_id>/attendance/", views.attendance_list, name="attendance_list"),
+diff --git a/employees/views.py b/employees/views.py
+index 956f63d..bcc0bed 100644
+--- a/employees/views.py
++++ b/employees/views.py
+@@ -1,11 +1,14 @@
+ from django.contrib import messages
+ from django.contrib.auth.decorators import login_required
++from django.http import HttpResponse
+ from django.shortcuts import get_object_or_404, redirect, render
+ from django.utils import timezone
+ 
+ from accounts.services import GrantLoginError, grant_login
+ from organizations.models import OrganizationMember
+-from .forms import AttendanceForm, EmployeeForm, EmployeeSelfForm, LeaveForm
++from .bulk_import import batch, columns as import_columns, files as import_files, parse_upload
++from .bulk_import.commit import commit_rows
++from .forms import AttendanceForm, EmployeeForm, EmployeeImportUploadForm, EmployeeSelfForm, LeaveForm
+ from .models import Attendance, Employee, Leave
+ from . import permissions
+ 
+@@ -55,6 +58,7 @@ def employee_list(request, org_id):
+         "org_id": org_id, 
+         "current_org": membership.organization,
+         "can_view_salary_column": permissions.is_admin(membership),
++        "can_import": permissions.is_admin(membership),
+     })
+ 
+ 
+@@ -147,7 +151,7 @@ def employee_grant_login(request, uuid):
+             messages.success(
+                 request,
+                 f"Login created for {user.email}. They can set their password "
+-                "once first-time setup is available.",
++                "the first time they log in.",
+             )
+         except GrantLoginError as exc:
+             messages.error(request, str(exc))
+@@ -496,4 +500,102 @@ def payroll(request, org_id):
+         "org_id": org_id, 
+         "current_org": organization,
+         "can_edit_payroll": can_edit,
+-    })
+\ No newline at end of file
++    })
++
++
++# ---------------------------------------------------------------------------
++# Bulk import (admin / owner only)
++# ---------------------------------------------------------------------------
++
++XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
++
++
++def _import_membership(request, org_id):
++    """The admin membership for this org, or None (after flashing an error)."""
++    membership = get_membership(request.user, org_id)
++    if not permissions.is_admin(membership):
++        messages.error(request, "Only admins can import employees.")
++        return None
++    return membership
++
++
++@login_required
++def employee_import(request, org_id):
++    membership = _import_membership(request, org_id)
++    if membership is None:
++        return redirect("home")
++    organization = membership.organization
++    columns = import_columns.build_columns(organization)
++    context = {
++        "organization": organization, "current_org": organization, "org_id": org_id,
++        "stage": "upload", "columns": columns,
++    }
++
++    if request.method == "POST" and request.POST.get("action") == "confirm":
++        payload = batch.load_batch(request, org_id, request.POST.get("token", ""))
++        if payload is None:
++            messages.error(
++                request, "This preview has expired or was replaced. Please upload the file again."
++            )
++            return redirect("employee_import", org_id=org_id)
++        result = commit_rows(payload["rows"], organization, request.user)
++        batch.clear_batch(request)
++        context.update(stage="result", result=result)
++        return render(request, "employees/import.html", context)
++
++    if request.method == "POST":
++        form = EmployeeImportUploadForm(request.POST, request.FILES)
++        if form.is_valid():
++            report = parse_upload(form.cleaned_data["file"], organization)
++            if not report.ok:
++                batch.clear_batch(request)
++                context["file_errors"] = report.file_errors
++            else:
++                payload = batch.report_to_payload(report)
++                token = batch.store_batch(request, org_id, payload)
++                counts = report.counts
++                context.update(
++                    stage="preview",
++                    token=token,
++                    notices=report.notices,
++                    column_names=[c["name"] for c in payload["columns"]],
++                    rows=[
++                        {
++                            "n": r["n"], "status": r["status"], "notes": r["notes"],
++                            "cells": [r["values"].get(c["key"], "") for c in payload["columns"]],
++                        }
++                        for r in payload["rows"]
++                    ],
++                    counts=counts,
++                    importable=counts["READY"] + counts["WARNING"],
++                    problems=counts["ERROR"] + counts["SKIP"],
++                )
++    else:
++        form = EmployeeImportUploadForm()
++    context["form"] = form
++    return render(request, "employees/import.html", context)
++
++
++@login_required
++def employee_import_template(request, org_id):
++    membership = _import_membership(request, org_id)
++    if membership is None:
++        return redirect("home")
++    content = import_files.build_template(import_columns.build_columns(membership.organization))
++    response = HttpResponse(content, content_type=XLSX_TYPE)
++    response["Content-Disposition"] = 'attachment; filename="employee_import_template.xlsx"'
++    return response
++
++
++@login_required
++def employee_import_problems(request, org_id):
++    membership = _import_membership(request, org_id)
++    if membership is None:
++        return redirect("home")
++    payload = batch.load_batch(request, org_id, request.GET.get("token", ""))
++    if payload is None:
++        messages.error(request, "This preview has expired. Please upload the file again.")
++        return redirect("employee_import", org_id=org_id)
++    response = HttpResponse(import_files.build_problem_report(payload), content_type=XLSX_TYPE)
++    response["Content-Disposition"] = 'attachment; filename="employee_import_problems.xlsx"'
++    return response
+diff --git a/requirements.txt b/requirements.txt
+index 2ae16e8..61d56ab 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,3 +1,4 @@
+ Django>=5.2,<6.0
+ cryptography>=50.0,<51.0
+ python-dotenv>=1.0,<2.0
++openpyxl>=3.1,<4.0
+diff --git a/templates/employees/import.html b/templates/employees/import.html
+new file mode 100644
+index 0000000..79ae7b7
+--- /dev/null
++++ b/templates/employees/import.html
+@@ -0,0 +1,147 @@
++{% extends "base.html" %}
++
++{% block title %}Import employees{% endblock %}
++
++{% block content %}
++
++<div class="breadcrumb">
++    <a href="{% url 'employee_list' org_id %}">{{ organization.name }}</a>
++    <span>›</span>
++    <span>Import employees</span>
++</div>
++
++<div class="page-head">
++    <div>
++        <div class="eyebrow">{{ organization.name }}</div>
++        <h1>Import employees</h1>
++        <p class="muted">Upload an Excel sheet. You review everything before anything is saved.</p>
++    </div>
++    <div class="actions">
++        <a class="btn" href="{% url 'employee_import_template' org_id %}">Download template</a>
++        <a class="btn" href="{% url 'employee_list' org_id %}">Back to employees</a>
++    </div>
++</div>
++
++{% if stage == "upload" %}
++
++<div class="card">
++    {% for error in file_errors %}<div class="alert" style="background:#fef3f2;border-color:#fda29b;color:#b42318;">{{ error }}</div>{% endfor %}
++
++    <form method="post" enctype="multipart/form-data">
++        {% csrf_token %}
++        {{ form.as_p }}
++        <button type="submit" class="btn btn-primary">Preview import</button>
++    </form>
++</div>
++
++<div class="card">
++    <h2>Expected columns</h2>
++    <p class="muted small">Only <strong>Emp Name</strong> and <strong>Mail ID</strong> are required. Headers can be in any of the first 5 rows; capitals and full stops don't matter. Everyone imported gets a login and sets their own password the first time they log in.</p>
++    <div class="table-wrap">
++        <table>
++            <thead><tr><th>Column</th><th></th></tr></thead>
++            <tbody>
++            {% for c in columns %}
++                <tr><td>{{ c.label }}</td><td>{% if c.required %}<span class="badge">Required</span>{% elif c.is_checklist %}<span class="muted small">Date; marks the checklist item Done</span>{% endif %}</td></tr>
++            {% endfor %}
++            </tbody>
++        </table>
++    </div>
++</div>
++
++{% elif stage == "preview" %}
++
++<div class="card">
++    <div class="section-head">
++        <h2>Preview</h2>
++        <div class="actions">
++            <span class="badge badge-success">{{ counts.READY }} ready</span>
++            <span class="badge badge-progress">{{ counts.WARNING }} with warnings</span>
++            <span class="badge badge-muted">{{ counts.SKIP }} skipped (duplicate)</span>
++            <span class="badge badge-danger">{{ counts.ERROR }} blocked</span>
++        </div>
++    </div>
++
++    {% for notice in notices %}<p class="muted small">{{ notice }}</p>{% endfor %}
++
++    <div class="table-wrap">
++        <table>
++            <thead>
++                <tr>
++                    <th>Row</th><th>Status</th>
++                    {% for name in column_names %}<th>{{ name }}</th>{% endfor %}
++                    <th>Notes</th>
++                </tr>
++            </thead>
++            <tbody>
++            {% for row in rows %}
++                <tr>
++                    <td>{{ row.n }}</td>
++                    <td>
++                        {% if row.status == "READY" %}<span class="badge badge-success">Ready</span>
++                        {% elif row.status == "WARNING" %}<span class="badge badge-progress">Warning</span>
++                        {% elif row.status == "SKIP" %}<span class="badge badge-muted">Skip</span>
++                        {% else %}<span class="badge badge-danger">Blocked</span>{% endif %}
++                    </td>
++                    {% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}
++                    <td>{% for note in row.notes %}<div class="small {% if row.status == 'ERROR' %}muted{% endif %}">{{ note }}</div>{% endfor %}</td>
++                </tr>
++            {% endfor %}
++            </tbody>
++        </table>
++    </div>
++
++    <div class="actions" style="margin-top:20px;">
++        {% if importable %}
++        <form method="post" class="inline">
++            {% csrf_token %}
++            <input type="hidden" name="action" value="confirm">
++            <input type="hidden" name="token" value="{{ token }}">
++            <button type="submit" class="btn btn-primary">Import {{ importable }} employee{{ importable|pluralize }}</button>
++        </form>
++        {% endif %}
++        {% if problems %}
++        <a class="btn" href="{% url 'employee_import_problems' org_id %}?token={{ token }}">Download the {{ problems }} row{{ problems|pluralize }} with problems</a>
++        {% endif %}
++        <a class="btn" href="{% url 'employee_import' org_id %}">Start over</a>
++    </div>
++    {% if importable %}
++    <p class="muted small" style="margin-top:14px;">Blocked and skipped rows are not imported. No emails are sent now; each person is guided to set a password when they first log in.</p>
++    {% else %}
++    <p class="muted small" style="margin-top:14px;">Nothing here can be imported. Fix the sheet and upload it again.</p>
++    {% endif %}
++</div>
++
++{% elif stage == "result" %}
++
++<div class="card">
++    <h2>Import finished</h2>
++    <p><span class="badge badge-success">{{ result.created|length }} imported</span>
++       {% if result.failed %}<span class="badge badge-danger">{{ result.failed|length }} failed</span>{% endif %}</p>
++
++    {% if result.failed %}
++    <h3>Not imported</h3>
++    <div class="table-wrap"><table>
++        <thead><tr><th>Row</th><th>Reason</th></tr></thead>
++        <tbody>{% for number, reason in result.failed %}<tr><td>{{ number }}</td><td>{{ reason }}</td></tr>{% endfor %}</tbody>
++    </table></div>
++    {% endif %}
++
++    {% if result.created %}
++    <h3>Imported</h3>
++    <div class="table-wrap"><table>
++        <thead><tr><th>Row</th><th>Employee ID</th><th>Login email</th></tr></thead>
++        <tbody>{% for number, employee_id, email in result.created %}<tr><td>{{ number }}</td><td>{{ employee_id }}</td><td>{{ email }}</td></tr>{% endfor %}</tbody>
++    </table></div>
++    <p class="muted small">They can log in with this email. The first time, they are asked to set a password through an emailed link.</p>
++    {% endif %}
++
++    <div class="actions" style="margin-top:16px;">
++        <a class="btn btn-primary" href="{% url 'employee_list' org_id %}">View employees</a>
++        <a class="btn" href="{% url 'employee_import' org_id %}">Import another file</a>
++    </div>
++</div>
++
++{% endif %}
++
++{% endblock %}
+diff --git a/templates/employees/list.html b/templates/employees/list.html
+index 24bdbe4..b8f8ca4 100644
+--- a/templates/employees/list.html
++++ b/templates/employees/list.html
+@@ -15,6 +15,7 @@
+ 
+     <div class="actions">
+         <a class="btn" href="{% url 'payroll' org.id %}">Payroll</a>
++        {% if can_import %}<a class="btn" href="{% url 'employee_import' org.id %}">Import employees</a>{% endif %}
+         <a class="btn btn-primary" href="{% url 'employee_create' org.id %}">+ Add employee</a>
+     </div>
+ </div>

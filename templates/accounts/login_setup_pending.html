@@ -1,14 +1,177 @@
 {% extends "base.html" %}
-{% block title %}Set up your account{% endblock %}
+{% block title %}Set Up Your Account — Workspace{% endblock %}
+
 {% block auth_content %}
-<div class="card narrow">
-    <h1>Set up your account</h1>
-    <p>Your login for <strong>{{ pending_user.email|default:pending_user.username }}</strong> has been created, but you haven't set a password yet.</p>
-    <p>We'll email a one-time setup link to <strong>{{ masked_email }}</strong>.</p>
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-glow: rgba(79, 70, 229, 0.15);
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+  }
+
+  .auth-viewport {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 1rem;
+    box-sizing: border-box;
+    background: 
+      radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(56, 189, 248, 0.05) 0px, transparent 50%);
+  }
+
+  .auth-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2.5rem 2.25rem;
+    max-width: 450px;
+    width: 100%;
+    box-shadow: 
+      0 4px 6px -1px rgba(0, 0, 0, 0.05),
+      0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    animation: slideUp 0.35s ease-out forwards;
+    box-sizing: border-box;
+  }
+
+  .auth-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .auth-brand-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: #eef2ff;
+    color: var(--primary);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+  }
+
+  .auth-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-main);
+    margin: 0;
+  }
+
+  .info-box {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    color: #334155;
+    line-height: 1.5;
+  }
+
+  .info-box p {
+    margin: 0 0 0.5rem;
+  }
+
+  .info-box p:last-child {
+    margin: 0;
+  }
+
+  .submit-btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.75rem;
+    background: var(--primary);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+    transition: background-color 0.15s ease, transform 0.1s ease;
+  }
+
+  .submit-btn:hover {
+    background: var(--primary-hover);
+  }
+
+  .submit-btn:active {
+    transform: scale(0.99);
+  }
+
+  .auth-footnote {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  .auth-footnote a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .auth-footnote a:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 480px) {
+    .auth-viewport {
+      padding: 1rem;
+      align-items: flex-start;
+      padding-top: 2rem;
+    }
+    .auth-panel {
+      padding: 1.75rem 1.25rem;
+      border-radius: 12px;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
+
+<div class="auth-viewport">
+  <div class="auth-panel">
+    <div class="auth-header">
+      <div class="auth-brand-badge">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+          <polyline points="22,6 12,13 2,6"></polyline>
+        </svg>
+      </div>
+      <h1>Set up your account</h1>
+    </div>
+
+    <div class="info-box">
+      <p>Your login for <strong>{{ pending_user.email|default:pending_user.username }}</strong> has been provisioned, but requires a password.</p>
+      <p>Click below to receive a secure setup link at <strong>{{ masked_email }}</strong>.</p>
+    </div>
+
     <form method="post">
-        {% csrf_token %}
-        <button class="btn btn-primary" type="submit">Send setup link</button>
+      {% csrf_token %}
+      <button class="submit-btn" type="submit">Send setup link</button>
     </form>
-    <p class="small"><a href="{% url 'login' %}">Back to login</a></p>
+
+    <div class="auth-footnote">
+      <a href="{% url 'login' %}">← Back to login</a>
+    </div>
+  </div>
 </div>
 {% endblock %}

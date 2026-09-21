@@ -24,11 +24,10 @@
   }
 
   /* Staggered Entrance Animation */
-  .org-hero, .dashboard-stats, .section-head, .module-grid, .project-grid, .empty-state { 
+  .org-hero, .section-head, .module-grid, .project-grid, .empty-state { 
     animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; 
   }
   .org-hero { animation-delay: 0.05s; }
-  .dashboard-stats { animation-delay: 0.1s; }
   .section-head:nth-of-type(1) { animation-delay: 0.15s; }
   .module-grid { animation-delay: 0.2s; }
   .section-head:nth-of-type(2) { animation-delay: 0.25s; }
@@ -80,43 +79,6 @@
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
-  }
-
-  /* Stats Grid */
-  .dashboard-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 16px;
-  }
-  .stat-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius);
-    padding: 20px;
-    box-shadow: var(--shadow-sm);
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
-  }
-  .stat-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
-    border-color: #d1d5db;
-  }
-  .stat-icon {
-    font-size: 22px;
-    margin-bottom: 4px;
-  }
-  .stat-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--text-main);
-  }
-  .stat-label {
-    font-size: 13px;
-    color: var(--text-muted);
-    font-weight: 500;
   }
 
   /* Section Head */
@@ -323,34 +285,6 @@
                 + Project
             </a>
         </div>
-    </div>
-
-    <div class="dashboard-stats">
-
-        <div class="stat-card">
-            <div class="stat-icon">👥</div>
-            <div class="stat-value">{{ organization.employees.count }}</div>
-            <div class="stat-label">Employees</div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon">📁</div>
-            <div class="stat-value">{{ projects|length }}</div>
-            <div class="stat-label">Projects</div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon">🚀</div>
-            <div class="stat-value">{{ organization.projects.count }}</div>
-            <div class="stat-label">Active Projects</div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon">🛡️</div>
-            <div class="stat-value">{{ membership.get_role_display }}</div>
-            <div class="stat-label">Your Role</div>
-        </div>
-
     </div>
 
     <div class="section-head">

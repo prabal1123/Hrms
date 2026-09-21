@@ -1,52 +1,421 @@
 {% extends "base.html" %}
-{% block title %}Apply Leave{% endblock %}
-{% block content %}
-<div class="breadcrumb"><a href="{% url 'leave_list' current_org.id %}">Leave</a><span>›</span><span>Apply</span></div>
-<div class="page-head">
-    <div>
-        <div class="eyebrow">{{ current_org.name }}</div>
-        <h1>Apply leave</h1>
-        <p class="muted">Submit a leave request for an employee.</p>
-    </div>
-</div>
 
-<div class="card">
-    <form method="post">
+{% block title %}Request Leave · {{ employee.first_name }} {{ employee.last_name }}{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-light: #eef2ff;
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --radius-lg: 14px;
+    --radius-md: 8px;
+    --radius-sm: 6px;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  }
+
+  @keyframes slideUpFade {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-block {
+    animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .form-wrapper {
+    max-width: 620px;
+    margin: 0 auto 40px;
+  }
+
+  /* Breadcrumb Navigation */
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+  .breadcrumb a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .breadcrumb a:hover {
+    text-decoration: underline;
+  }
+
+  /* Page Header */
+  .page-header-compact {
+    margin-bottom: 20px;
+  }
+  .page-header-compact .eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--primary);
+    background: var(--primary-light);
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 6px;
+  }
+  .page-header-compact h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .page-header-compact .muted {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  /* Leave Card */
+  .leave-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .leave-card-head {
+    padding: 14px 20px;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .leave-card-head h2 {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .head-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .status-pill {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    background: #fef3c7;
+    color: #92400e;
+    border-radius: 20px;
+  }
+  .duration-pill {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    background: var(--primary-light);
+    color: var(--primary);
+    border-radius: 20px;
+    display: none;
+  }
+
+  .leave-card-body {
+    padding: 22px;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .col-span-2 {
+    grid-column: 1 / -1;
+  }
+
+  /* Duration Summary Box */
+  .duration-box {
+    background: var(--surface-alt);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .duration-box .label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .duration-box .value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--primary);
+  }
+
+  /* Form Controls */
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .form-group label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .form-group label .req {
+    color: var(--danger);
+  }
+  .form-group input[type="date"],
+  .form-group textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    color: var(--text-main);
+    background: var(--surface);
+    transition: all 0.15s ease-in-out;
+  }
+  .form-group input[type="date"] {
+    height: 40px;
+  }
+  .form-group textarea {
+    min-height: 85px;
+    resize: vertical;
+  }
+  .form-group input:focus,
+  .form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  }
+
+  /* Error and Validation */
+  .field-error {
+    color: var(--danger);
+    font-size: 0.78rem;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+  .error-summary {
+    background: var(--danger-light);
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+    font-size: 0.85rem;
+  }
+
+  /* Form Actions */
+  .card-footer {
+    padding: 14px 22px;
+    background: var(--surface-alt);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 18px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.88rem;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-main);
+    transition: all 0.15s ease;
+  }
+  .btn:hover {
+    background: var(--surface-alt);
+    border-color: #cbd5e1;
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+    box-shadow: 0 1px 3px rgba(79, 70, 229, 0.25);
+  }
+  .btn-primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
+
+  @media (max-width: 540px) {
+    .form-grid {
+      grid-template-columns: 1fr;
+    }
+    .card-footer {
+      flex-direction: column-reverse;
+    }
+    .card-footer .btn {
+      width: 100%;
+    }
+  }
+</style>
+
+<div class="form-wrapper animate-block">
+    <div class="breadcrumb">
+        <a href="{% url 'employee_detail' employee.uuid %}">{{ employee.first_name }} {{ employee.last_name }}</a>
+        <span>›</span>
+        <span>Apply for Leave</span>
+    </div>
+
+    <div class="page-header-compact">
+        <div class="eyebrow">Leave Application</div>
+        <h1>Request Leave</h1>
+        <p class="muted">Submit dates and details for supervisor approval.</p>
+    </div>
+
+    {% if form.non_field_errors %}
+        <div class="error-summary">
+            {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <form method="post" class="leave-card">
         {% csrf_token %}
-        {{ form.non_field_errors }}
-        <div class="form-group">
-            <label>Employee</label>
-            <p>{{ employee.first_name }} {{ employee.last_name }} <span class="muted">({{ employee.employee_id }})</span></p>
+
+        <div class="leave-card-head">
+            <h2>Leave Details</h2>
+            <div class="head-badges">
+                <span id="durationPill" class="duration-pill"></span>
+                <span class="status-pill">Pending Approval</span>
+            </div>
         </div>
-        <div class="form-group">
-            {{ form.start_date.errors }}
-            <label for="{{ form.start_date.id_for_label }}">Start Date</label>
-            {{ form.start_date }}
+
+        <div class="leave-card-body">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="{{ form.start_date.id_for_label }}">Start Date <span class="req">*</span></label>
+                    {{ form.start_date }}
+                    {% if form.start_date.errors %}
+                        <div class="field-error">{{ form.start_date.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.end_date.id_for_label }}">End Date <span class="req">*</span></label>
+                    {{ form.end_date }}
+                    {% if form.end_date.errors %}
+                        <div class="field-error">{{ form.end_date.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Live Duration Preview -->
+                <div class="form-group col-span-2">
+                    <div class="duration-box">
+                        <span class="label">Total Leave Duration</span>
+                        <span id="durationText" class="value" style="color: var(--text-muted); font-weight: normal;">Select start & end dates</span>
+                    </div>
+                </div>
+
+                <div class="form-group col-span-2">
+                    <label for="{{ form.reason.id_for_label }}">Reason for Leave</label>
+                    {{ form.reason }}
+                    {% if form.reason.errors %}
+                        <div class="field-error">{{ form.reason.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-        <div class="form-group">
-            {{ form.end_date.errors }}
-            <label for="{{ form.end_date.id_for_label }}">End Date</label>
-            {{ form.end_date }}
-        </div>
-        <div class="form-group">
-            {{ form.leave_type.errors }}
-            <label for="{{ form.leave_type.id_for_label }}">Leave Type</label>
-            {{ form.leave_type }}
-        </div>
-        <div class="form-group">
-            {{ form.status.errors }}
-            <label for="{{ form.status.id_for_label }}">Status</label>
-            {{ form.status }}
-        </div>
-        <div class="form-group">
-            {{ form.reason.errors }}
-            <label for="{{ form.reason.id_for_label }}">Reason</label>
-            {{ form.reason }}
-        </div>
-        <div class="actions">
-            <button class="btn btn-primary" type="submit">Save leave</button>
-            <a class="btn" href="{% url 'leave_list' current_org.id %}">Cancel</a>
+
+        <div class="card-footer">
+            <a class="btn" href="{% url 'employee_detail' employee.uuid %}">Cancel</a>
+            <button class="btn btn-primary" type="submit" id="submitBtn">Submit Request</button>
         </div>
     </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startDateInput = document.getElementById('{{ form.start_date.id_for_label }}');
+    const endDateInput = document.getElementById('{{ form.end_date.id_for_label }}');
+    const durationText = document.getElementById('durationText');
+    const durationPill = document.getElementById('durationPill');
+    const submitBtn = document.getElementById('submitBtn');
+
+    function calculateDuration() {
+        if (!startDateInput || !endDateInput) return;
+
+        const startVal = startDateInput.value;
+        const endVal = endDateInput.value;
+
+        if (!startVal || !endVal) {
+            durationText.textContent = "Select start & end dates";
+            durationText.style.color = "var(--text-muted)";
+            durationText.style.fontWeight = "normal";
+            durationPill.style.display = "none";
+            submitBtn.disabled = false;
+            return;
+        }
+
+        const start = new Date(startVal + "T00:00:00");
+        const end = new Date(endVal + "T00:00:00");
+
+        if (end < start) {
+            durationText.textContent = "End date cannot be earlier than start date";
+            durationText.style.color = "var(--danger)";
+            durationText.style.fontWeight = "600";
+            durationPill.style.display = "none";
+            submitBtn.disabled = true;
+            return;
+        }
+
+        // Inclusive day calculation: (end - start) in days + 1
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        const dayLabel = diffDays === 1 ? "1 day" : `${diffDays} days`;
+
+        durationText.textContent = dayLabel;
+        durationText.style.color = "var(--primary)";
+        durationText.style.fontWeight = "700";
+
+        durationPill.textContent = dayLabel;
+        durationPill.style.display = "inline-block";
+        submitBtn.disabled = false;
+    }
+
+    if (startDateInput && endDateInput) {
+        startDateInput.addEventListener('change', function() {
+            // Automatically set end date min constraint
+            if (startDateInput.value) {
+                endDateInput.min = startDateInput.value;
+            }
+            calculateDuration();
+        });
+        endDateInput.addEventListener('change', calculateDuration);
+
+        // Run once on load in case browser restored previous inputs
+        calculateDuration();
+    }
+});
+</script>
 {% endblock %}

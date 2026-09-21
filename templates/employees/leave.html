@@ -1,111 +1,377 @@
 {% extends "base.html" %}
 
-{% block title %}My Leave · {{ organization.name }}{% endblock %}
+{% block title %}Leave Requests · {{ organization.name }}{% endblock %}
 
 {% block content %}
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-light: #eef2ff;
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --warning: #f59e0b;
+    --warning-light: #fef3c7;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --radius-lg: 14px;
+    --radius-md: 8px;
+    --radius-sm: 6px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+  }
 
-<div class="page-head">
+  @keyframes slideUpFade {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-block {
+    animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Page Header */
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .page-header .eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--primary);
+    background: var(--primary-light);
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 4px;
+  }
+  .page-header h1 {
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .page-header p {
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    margin: 0;
+  }
+
+  /* Leave Directory Card */
+  .leave-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .card-head {
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface-alt);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .card-head h2 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0;
+  }
+  .card-count {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  /* Table styling */
+  .table-wrap {
+    overflow-x: auto;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    white-space: nowrap;
+  }
+  th {
+    background: #ffffff;
+    padding: 12px 20px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 14px 20px;
+    font-size: 0.88rem;
+    color: var(--text-main);
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tr:last-child td {
+    border-bottom: none;
+  }
+  tbody tr:hover {
+    background-color: var(--surface-alt);
+  }
+
+  /* Sticky Right Action Column */
+  th.col-action,
+  td.col-action {
+    position: sticky;
+    right: 0;
+    text-align: right;
+    background: var(--surface);
+    z-index: 2;
+    box-shadow: -4px 0 8px -2px rgba(15, 23, 42, 0.05);
+  }
+  th.col-action {
+    background: #ffffff;
+    z-index: 3;
+  }
+  tbody tr:hover td.col-action {
+    background: var(--surface-alt);
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .badge-pending { background: var(--warning-light); color: #92400e; }
+  .badge-approved { background: var(--success-light); color: #065f46; }
+  .badge-rejected { background: var(--danger-light); color: #991b1b; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-main);
+    transition: all 0.15s ease;
+  }
+  .btn:hover {
+    background: var(--surface-alt);
+    border-color: #cbd5e1;
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+    box-shadow: 0 1px 3px rgba(79, 70, 229, 0.25);
+  }
+  .btn-primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
+
+  /* Micro Action Buttons in Table */
+  .btn-micro {
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .btn-approve {
+    background: var(--success-light);
+    color: #065f46;
+    border-color: #a7f3d0;
+  }
+  .btn-approve:hover {
+    background: #a7f3d0;
+  }
+  .btn-reject {
+    background: var(--danger-light);
+    color: #991b1b;
+    border-color: #fecaca;
+  }
+  .btn-reject:hover {
+    background: #fecaca;
+  }
+  .btn-cancel {
+    background: var(--surface-alt);
+    color: var(--text-muted);
+    border-color: var(--border);
+  }
+  .btn-cancel:hover {
+    background: #e2e8f0;
+    color: var(--text-main);
+  }
+
+  .table-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 56px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state h3 {
+    font-size: 1.05rem;
+    color: var(--text-main);
+    margin: 0 0 6px;
+  }
+  .empty-state p {
+    font-size: 0.9rem;
+    margin: 0 0 18px;
+  }
+</style>
+
+<div class="page-header animate-block">
     <div>
         <div class="eyebrow">{{ organization.name }}</div>
-        {% if is_member %}
-            <h1>My Leave</h1>
-            <p class="muted">View and manage your leave requests.</p>
-        {% else %}
-            <h1>Leave Management</h1>
-            <p class="muted">Review leave requests across your organization.</p>
-        {% endif %}
+        <h1>{% if is_member %}My Leaves{% else %}Leave Management{% endif %}</h1>
+        <p>{% if is_member %}Track your leave applications and approval statuses.{% else %}Review, approve, or reject employee leave requests.{% endif %}</p>
     </div>
 
-    {% if is_member and employee %}
-        <a href="{% url 'leave_create' employee.id %}" class="btn btn-primary">+ Apply for Leave</a>
+    {% if employee %}
+    <div>
+        <a class="btn btn-primary" href="{% url 'leave_create' employee.id %}">+ Apply for Leave</a>
+    </div>
     {% endif %}
 </div>
 
-<div class="card">
+<div class="leave-card animate-block">
+    <div class="card-head">
+        <h2>{% if is_member %}My Leave History{% else %}Organization Leave Requests{% endif %}</h2>
+        <span class="card-count">{{ records|length }} Record{{ records|length|pluralize }}</span>
+    </div>
 
-    {% if is_member %}
+    {% if records %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    {% if not is_member %}
+                    <th>Employee</th>
+                    {% endif %}
+                    <th>Duration</th>
+                    <th>Dates</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th class="col-action">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for leave in records %}
+                <tr>
+                    {% if not is_member %}
+                    <td>
+                        <strong>{{ leave.employee.first_name }} {{ leave.employee.last_name }}</strong>
+                        {% if leave.employee.designation %}
+                            <div style="font-size: 0.76rem; color: var(--text-muted);">{{ leave.employee.designation }}</div>
+                        {% endif %}
+                    </td>
+                    {% endif %}
 
-        {% if records %}
-            <div class="summary-strip" style="margin-bottom:20px;">
-                <div class="stat">
-                    <span class="muted small">Total Requests</span>
-                    <strong>{{ records|length }}</strong>
-                </div>
-                <div class="stat">
-                    <span class="muted small">Pending</span>
-                    <strong>{{ records|length }}</strong>
-                </div>
-                <div class="stat">
-                    <span class="muted small">Latest Request</span>
-                    <strong>{{ records.0.start_date|date:"M j" }}</strong>
-                </div>
-            </div>
+                    <td style="font-weight: 600;">
+                        {{ leave.start_date|timesince:leave.end_date|default:"1 day" }}
+                    </td>
 
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr><th>Leave Type</th><th>Dates</th><th>Reason</th><th>Status</th></tr>
-                    </thead>
-                    <tbody>
-                    {% for leave in records %}
-                        <tr>
-                            <td><strong>{{ leave.get_leave_type_display }}</strong></td>
-                            <td>{{ leave.start_date|date:"M j, Y" }} – {{ leave.end_date|date:"M j, Y" }}</td>
-                            <td class="muted">{{ leave.reason|default:"No reason provided."|truncatechars:60 }}</td>
-                            <td>
-                                <span class="badge {% if leave.status == 'approved' %}badge-success{% elif leave.status == 'pending' %}badge-progress{% else %}badge-danger{% endif %}">
-                                    {{ leave.get_status_display }}
-                                </span>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="empty">
-                <h3>No leave requests yet</h3>
-                <p class="muted">You haven't applied for any leave yet.</p>
-                {% if employee %}
-                    <a href="{% url 'leave_create' employee.id %}" class="btn btn-primary">Apply for Leave</a>
-                {% endif %}
-            </div>
-        {% endif %}
+                    <td>
+                        {{ leave.start_date|date:"M j, Y" }}
+                        {% if leave.start_date != leave.end_date %}
+                            <span style="color: var(--text-muted);"> &rarr; </span> {{ leave.end_date|date:"M j, Y" }}
+                        {% endif %}
+                    </td>
 
+                    <td style="max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {{ leave.reason|default:"—" }}
+                    </td>
+
+                    <td>
+                        {% if leave.status == "approved" %}
+                            <span class="badge badge-approved">Approved</span>
+                        {% elif leave.status == "rejected" %}
+                            <span class="badge badge-rejected">Rejected</span>
+                        {% else %}
+                            <span class="badge badge-pending">Pending</span>
+                        {% endif %}
+                    </td>
+
+                    <td class="col-action">
+                        <div class="table-actions">
+                            {% if can_manage_leave and leave.status == "pending" %}
+                                <!-- Admin Approval Form -->
+                                <form method="post" action="{% url 'leave_review' leave.id 'approve' %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn-micro btn-approve">Approve</button>
+                                </form>
+
+                                <!-- Admin Rejection Form -->
+                                <form method="post" action="{% url 'leave_review' leave.id 'reject' %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn-micro btn-reject">Reject</button>
+                                </form>
+                            {% elif is_member and leave.status == "pending" %}
+                                <!-- Applicant Self-Cancel Form -->
+                                <form method="post" action="{% url 'leave_cancel' leave.id %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn-micro btn-cancel" onclick="return confirm('Cancel this leave request?');">Cancel</button>
+                                </form>
+                            {% else %}
+                                <span style="color: var(--text-muted); font-size: 0.8rem;">—</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
-
-        {% if records %}
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr><th>Employee</th><th>Leave Type</th><th>Dates</th><th>Reason</th><th>Status</th></tr>
-                    </thead>
-                    <tbody>
-                    {% for leave in records %}
-                        <tr>
-                            <td><strong>{{ leave.employee.first_name }} {{ leave.employee.last_name }}</strong></td>
-                            <td>{{ leave.get_leave_type_display }}</td>
-                            <td>{{ leave.start_date|date:"M j, Y" }} – {{ leave.end_date|date:"M j, Y" }}</td>
-                            <td class="muted">{{ leave.reason|default:"No reason provided."|truncatechars:60 }}</td>
-                            <td>
-                                <span class="badge {% if leave.status == 'approved' %}badge-success{% elif leave.status == 'pending' %}badge-progress{% else %}badge-danger{% endif %}">
-                                    {{ leave.get_status_display }}
-                                </span>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="empty">
-                <h3>No leave requests</h3>
-                <p class="muted">There are no leave records for this organization.</p>
-            </div>
+    <div class="empty-state">
+        <h3>No leave applications found</h3>
+        <p>{% if is_member %}You haven't submitted any leave requests yet.{% else %}There are no leave requests pending review.{% endif %}</p>
+        {% if employee %}
+            <a class="btn btn-primary" href="{% url 'leave_create' employee.id %}">+ Apply for Leave</a>
         {% endif %}
-
+    </div>
     {% endif %}
-
 </div>
-
 {% endblock %}

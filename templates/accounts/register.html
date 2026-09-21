@@ -1,13 +1,226 @@
 {% extends "base.html" %}
-{% block title %}Register{% endblock %}
+{% block title %}Create Account — Workspace{% endblock %}
+
 {% block auth_content %}
-<div class="card narrow">
-    <h1>Register</h1>
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-glow: rgba(79, 70, 229, 0.15);
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+  }
+
+  .auth-viewport {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 1rem;
+    box-sizing: border-box;
+    background: 
+      radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(56, 189, 248, 0.05) 0px, transparent 50%);
+  }
+
+  .auth-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2.5rem 2.25rem;
+    max-width: 440px;
+    width: 100%;
+    box-shadow: 
+      0 4px 6px -1px rgba(0, 0, 0, 0.05),
+      0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    animation: slideUp 0.35s ease-out forwards;
+    box-sizing: border-box;
+  }
+
+  .auth-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .auth-brand-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: #eef2ff;
+    color: var(--primary);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+  }
+
+  .auth-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-main);
+    margin: 0;
+  }
+
+  .auth-header p {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    margin-top: 0.35rem;
+  }
+
+  .auth-panel form p {
+    margin-bottom: 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .auth-panel label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #475569;
+    letter-spacing: 0.02em;
+  }
+
+  /* 16px (1rem) prevents iOS Safari from auto-zooming on focus */
+  .auth-panel input[type="text"],
+  .auth-panel input[type="email"],
+  .auth-panel input[type="password"] {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+    background: #f8fafc;
+    color: var(--text-main);
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+  }
+
+  .auth-panel input:focus {
+    outline: none;
+    background: #ffffff;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+  }
+
+  .auth-panel .helptext {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.35;
+    margin-top: 0.15rem;
+  }
+
+  .auth-panel .helptext ul {
+    margin: 0.25rem 0 0;
+    padding-left: 1.1rem;
+  }
+
+  .auth-panel .errorlist {
+    color: #dc2626;
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.4rem 0;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  .submit-btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.75rem;
+    background: var(--primary);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 0.75rem;
+    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+    transition: background-color 0.15s ease, transform 0.1s ease;
+  }
+
+  .submit-btn:hover {
+    background: var(--primary-hover);
+  }
+
+  .submit-btn:active {
+    transform: scale(0.99);
+  }
+
+  .auth-footnote {
+    margin-top: 1.75rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  .auth-footnote a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .auth-footnote a:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 480px) {
+    .auth-viewport {
+      padding: 1rem;
+      align-items: flex-start;
+      padding-top: 2rem;
+    }
+    .auth-panel {
+      padding: 1.75rem 1.25rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+    .auth-header h1 {
+      font-size: 1.35rem;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
+
+<div class="auth-viewport">
+  <div class="auth-panel">
+    <div class="auth-header">
+      <div class="auth-brand-badge">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="8.5" cy="7" r="4"></circle>
+          <line x1="20" y1="8" x2="20" y2="14"></line>
+          <line x1="23" y1="11" x2="17" y2="11"></line>
+        </svg>
+      </div>
+      <h1>Create account</h1>
+      <p>Get started with your new workspace</p>
+    </div>
+
     <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button class="btn btn-primary" type="submit">Register</button>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="submit-btn" type="submit">Create account</button>
     </form>
-    <p class="small">Already have an account? <a href="{% url 'login' %}">Login</a></p>
+
+    <div class="auth-footnote">
+      Already have an account? <a href="{% url 'login' %}">Sign in</a>
+    </div>
+  </div>
 </div>
 {% endblock %}
