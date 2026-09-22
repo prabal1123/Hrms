@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Assign Leave · {{ organization.name }}{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --border: #cbd5e1;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --danger: #ef4444;
+    --radius-lg: 12px;
+    --radius-sm: 6px;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .mgmt-leave-card {
+    max-width: 600px;
+    margin: 20px auto 40px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .card-head {
+    padding: 16px 22px;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .card-head h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+  }
+
+  .card-body {
+    padding: 24px 22px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .form-group label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    box-sizing: border-box;
+    height: 38px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    color: var(--text-main);
+    background: var(--surface);
+  }
+
+  .form-group textarea {
+    height: auto;
+    min-height: 80px;
+    resize: vertical;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .btn-wrap {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 18px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-main);
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+  }
+
+  .btn-primary:hover {
+    background: var(--primary-hover);
+  }
+</style>
+
+<div class="mgmt-leave-card">
+    <div class="card-head">
+        <a href="{% url 'attendance_exceptions' org_id %}" style="text-decoration: none; color: var(--primary); font-size: 0.82rem; font-weight: 600;">&larr; Back to Exceptions</a>
+        <h1 style="margin-top: 6px;">Assign Leave (Management Direct)</h1>
+        <p style="margin: 4px 0 0; font-size: 0.82rem; color: var(--text-muted);">
+            Leaves assigned by management are automatically marked as <strong>Approved</strong>. Unpaid leaves deduct daily pay in payroll.
+        </p>
+    </div>
+
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="employee_id">Target Employee <span style="color: var(--danger);">*</span></label>
+                <select name="employee_id" id="employee_id" required>
+                    <option value="">— Select Employee —</option>
+                    {% for emp in employees %}
+                        <option value="{{ emp.id }}">{{ emp.employee_id }} — {{ emp.first_name }} {{ emp.last_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="leave_type">Leave Type <span style="color: var(--danger);">*</span></label>
+                <select name="leave_type" id="leave_type">
+                    <option value="unpaid" selected>Unpaid (Deducted from gross pay)</option>
+                    <option value="annual">Annual / Paid (Counts toward payable days)</option>
+                    <option value="sick">Sick / Paid (Counts toward payable days)</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="start_date">Start Date <span style="color: var(--danger);">*</span></label>
+                    <input type="date" name="start_date" id="start_date" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="end_date">End Date <span style="color: var(--danger);">*</span></label>
+                    <input type="date" name="end_date" id="end_date" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="reason">Reason / Justification</label>
+                <textarea name="reason" id="reason" placeholder="Administrative note or leave cause..."></textarea>
+            </div>
+
+            <div class="btn-wrap">
+                <a href="{% url 'attendance_exceptions' org_id %}" class="btn">Cancel</a>
+                <button type="submit" class="btn btn-primary">Confirm &amp; Record Approved Leave</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

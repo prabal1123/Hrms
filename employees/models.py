@@ -10,9 +10,148 @@ from organizations.models import Organization
 from .fields import EncryptedCharField, EncryptedDecimalField
 from .validators import validate_aadhar, validate_pan
 from django.utils import timezone
+from datetime import time, datetime, timedelta
 
 User = get_user_model()
 
+WEEKDAY_CHOICES = (
+    (0, "Monday"),
+    (1, "Tuesday"),
+    (2, "Wednesday"),
+    (3, "Thursday"),
+    (4, "Friday"),
+    (5, "Saturday"),
+    (6, "Sunday"),
+)
+
+# class Employee(models.Model):
+#     uuid = models.UUIDField(
+#         default=uuid.uuid4,
+#         unique=True,
+#         editable=False,
+#         db_index=True,
+#     )
+#     organization = models.ForeignKey(
+#         Organization, on_delete=models.CASCADE, related_name="employees"
+#     )
+#     # Links this employee record to the logged-in user account.
+#     # Nullable because pre-existing Employee rows won't have a user set
+#     # until they're backfilled (see migration notes).
+#     user = models.ForeignKey(
+#         User,
+#         on_delete=models.CASCADE,
+#         related_name="employee_profiles",
+#         null=True,
+#         blank=True,
+#     )
+#     employee_id = models.CharField(max_length=50, editable=False)
+#     first_name = models.CharField(max_length=80)
+#     last_name = models.CharField(max_length=80, blank=True)
+
+#     # --- Encrypted PII & Financial Fields ---
+#     email = EncryptedCharField(max_length=254, blank=True)
+#     phone = EncryptedCharField(max_length=50, blank=True)
+#     date_joined = models.DateField(null=True, blank=True)
+
+#     salary = EncryptedDecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
+#     pf = EncryptedDecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
+#     esi = EncryptedDecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
+#     other_deductions = EncryptedDecimalField(
+#         max_digits=12, decimal_places=2, default=Decimal("0"), blank=True
+#     )
+#     # ----------------------------------------
+
+#     is_active = models.BooleanField(default=True)
+#     payroll_confirmed = models.BooleanField(default=False)
+
+#     # The person this employee reports to. Set by admins only (enforced in
+#     # EmployeeForm). SET_NULL so deleting a supervisor never deletes reports.
+#     supervisor = models.ForeignKey(
+#         "self",
+#         on_delete=models.SET_NULL,
+#         null=True,
+#         blank=True,
+#         related_name="direct_reports",
+#     )
+
+#     # --- Job / bank details (not sensitive on their own) ---
+#     designation = models.CharField(max_length=100, blank=True)
+#     bank_name = models.CharField(max_length=100, blank=True)
+#     ifsc_no = models.CharField(max_length=20, blank=True)
+
+#     # --- Encrypted identity, statutory and contact details ---
+#     # NOTE on max_length: for encrypted fields the DB column stores the Fernet
+#     # token, which is ~1.4x the plaintext length plus ~100 characters. The
+#     # lengths below are sized for the token so the columns also work on
+#     # databases that enforce varchar length (e.g. PostgreSQL). Tighter limits
+#     # on the plaintext (12 digits, 10 chars, ...) are enforced by validators
+#     # and by the bulk importer.
+#     aadhar_no = EncryptedCharField(
+#         max_length=512, blank=True, validators=[validate_aadhar]
+#     )
+#     pan_no = EncryptedCharField(
+#         max_length=512, blank=True, validators=[validate_pan]
+#     )
+#     bank_account_no = EncryptedCharField(max_length=512, blank=True)
+#     uan_no = EncryptedCharField(max_length=512, blank=True)
+#     esic_no = EncryptedCharField(max_length=512, blank=True)
+#     address = EncryptedCharField(max_length=4000, blank=True)
+
+#     class Meta:
+#         constraints = [
+#             models.UniqueConstraint(
+#                 fields=["organization", "employee_id"],
+#                 name="unique_employee_id_per_org",
+#             ),
+#             models.UniqueConstraint(
+#                 fields=["organization", "user"],
+#                 name="unique_employee_user_per_org",
+#             ),
+#         ]
+#         ordering = ["first_name", "last_name"]
+
+#     def save(self, *args, **kwargs):
+#         if not self.employee_id:
+#             with transaction.atomic():
+#                 # Extract clean alphabetic prefix from org name (fallback to 'org' if empty)
+#                 org_prefix = re.sub(r'[^a-zA-Z]', '', self.organization.name)[:3].lower()
+#                 if not org_prefix:
+#                     org_prefix = "org"
+
+#                 # select_for_update() locks the matching row(s) for the
+#                 # duration of this transaction, so a second, concurrent
+#                 # save() for the same organization has to wait until this
+#                 # one commits (and releases the lock) before it can read
+#                 # the "last" employee_id. This prevents two concurrent
+#                 # requests from both computing the same next_num.
+#                 last_emp = (
+#                     Employee.objects.select_for_update()
+#                     .filter(organization=self.organization)
+#                     .order_by("-id")
+#                     .first()
+#                 )
+#                 if last_emp and last_emp.employee_id:
+#                     match = re.search(r"(\d+)$", last_emp.employee_id)
+#                     next_num = int(match.group(1)) + 1 if match else 1
+#                 else:
+#                     next_num = 1
+
+#                 # Format: aqu-1-0001
+#                 self.employee_id = f"{org_prefix}-{self.organization.id}-{next_num:04d}"
+#                 super().save(*args, **kwargs)
+#         else:
+#             super().save(*args, **kwargs)
+
+#     @property
+#     def total_deductions(self):
+#         return self.pf + self.esi + self.other_deductions
+
+#     @property
+#     def net_salary(self):
+#         return self.salary - self.total_deductions
+
+#     def __str__(self):
+#         return f"{self.employee_id} - {self.first_name} {self.last_name}".strip()
 
 class Employee(models.Model):
     uuid = models.UUIDField(
@@ -24,9 +163,6 @@ class Employee(models.Model):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="employees"
     )
-    # Links this employee record to the logged-in user account.
-    # Nullable because pre-existing Employee rows won't have a user set
-    # until they're backfilled (see migration notes).
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -38,6 +174,13 @@ class Employee(models.Model):
     first_name = models.CharField(max_length=80)
     last_name = models.CharField(max_length=80, blank=True)
 
+    # --- Working Schedule & Assigned Off ---
+    weekly_off = models.PositiveSmallIntegerField(
+        choices=WEEKDAY_CHOICES,
+        default=6,  # Default Sunday
+        help_text="Designated recurring weekly day off (0=Mon, 6=Sun)",
+    )
+
     # --- Encrypted PII & Financial Fields ---
     email = EncryptedCharField(max_length=254, blank=True)
     phone = EncryptedCharField(max_length=50, blank=True)
@@ -47,15 +190,12 @@ class Employee(models.Model):
     pf = EncryptedDecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
     esi = EncryptedDecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
     other_deductions = EncryptedDecimalField(
-        max_digits=12, decimal_places=2, default=Decimal("0"), blank=True
+        max_digits=12, decimal_places=2, default=Decimal("0")
     )
-    # ----------------------------------------
 
     is_active = models.BooleanField(default=True)
     payroll_confirmed = models.BooleanField(default=False)
 
-    # The person this employee reports to. Set by admins only (enforced in
-    # EmployeeForm). SET_NULL so deleting a supervisor never deletes reports.
     supervisor = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
@@ -64,18 +204,10 @@ class Employee(models.Model):
         related_name="direct_reports",
     )
 
-    # --- Job / bank details (not sensitive on their own) ---
     designation = models.CharField(max_length=100, blank=True)
     bank_name = models.CharField(max_length=100, blank=True)
     ifsc_no = models.CharField(max_length=20, blank=True)
 
-    # --- Encrypted identity, statutory and contact details ---
-    # NOTE on max_length: for encrypted fields the DB column stores the Fernet
-    # token, which is ~1.4x the plaintext length plus ~100 characters. The
-    # lengths below are sized for the token so the columns also work on
-    # databases that enforce varchar length (e.g. PostgreSQL). Tighter limits
-    # on the plaintext (12 digits, 10 chars, ...) are enforced by validators
-    # and by the bulk importer.
     aadhar_no = EncryptedCharField(
         max_length=512, blank=True, validators=[validate_aadhar]
     )
@@ -103,17 +235,10 @@ class Employee(models.Model):
     def save(self, *args, **kwargs):
         if not self.employee_id:
             with transaction.atomic():
-                # Extract clean alphabetic prefix from org name (fallback to 'org' if empty)
-                org_prefix = re.sub(r'[^a-zA-Z]', '', self.organization.name)[:3].lower()
+                org_prefix = re.sub(r"[^a-zA-Z]", "", self.organization.name)[:3].lower()
                 if not org_prefix:
                     org_prefix = "org"
 
-                # select_for_update() locks the matching row(s) for the
-                # duration of this transaction, so a second, concurrent
-                # save() for the same organization has to wait until this
-                # one commits (and releases the lock) before it can read
-                # the "last" employee_id. This prevents two concurrent
-                # requests from both computing the same next_num.
                 last_emp = (
                     Employee.objects.select_for_update()
                     .filter(organization=self.organization)
@@ -126,7 +251,6 @@ class Employee(models.Model):
                 else:
                     next_num = 1
 
-                # Format: aqu-1-0001
                 self.employee_id = f"{org_prefix}-{self.organization.id}-{next_num:04d}"
                 super().save(*args, **kwargs)
         else:
@@ -142,9 +266,7 @@ class Employee(models.Model):
 
     def __str__(self):
         return f"{self.employee_id} - {self.first_name} {self.last_name}".strip()
-
-
-from datetime import time, datetime, timedelta
+    
 
 ATTENDANCE_STATUS_CHOICES = (
     ('PRESENT', 'Present'),

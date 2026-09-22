@@ -204,6 +204,12 @@ ALLOWED_HOSTS = [
     ).split(",")
     if host.strip()
 ]
+CSRF_TRUSTED_ORIGINS = [
+    "http://18.61.200.14:8082",
+    "http://172.31.6.187:8082",
+    "http://localhost:8082",
+    "http://127.0.0.1:8082",
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",

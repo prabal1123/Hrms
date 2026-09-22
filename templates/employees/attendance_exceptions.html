@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Daily Attendance Exceptions · {{ organization.name }}{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-light: #eef2ff;
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --border: #e2e8f0;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --warning: #f59e0b;
+    --warning-light: #fef3c7;
+  }
+
+  .header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .toolbar-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .status-btn {
+    border: 1px solid var(--border);
+    background: #ffffff;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .status-btn.active-p  { background: var(--success-light); color: #065f46; border-color: var(--success); }
+  .status-btn.active-a  { background: var(--danger-light); color: #991b1b; border-color: var(--danger); }
+  .status-btn.active-hd { background: var(--warning-light); color: #92400e; border-color: var(--warning); }
+  .pill-off {
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #f1f5f9;
+    color: #475569;
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+  .pill-leave {
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #e0e7ff;
+    color: #3730a3;
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+</style>
+
+<div class="header-actions">
+    <div>
+        <h1 style="font-size: 1.5rem; margin: 0;">Daily Attendance Exceptions</h1>
+        <p style="color: var(--text-muted); font-size: 0.88rem; margin: 4px 0 0;">
+            All staff are considered <strong>Present</strong> by default. Click to mark single-day absences or half-days.
+        </p>
+    </div>
+    <a href="{% url 'leave_apply_management' org_id %}" class="btn" style="background: var(--primary); color: #ffffff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.85rem;">
+        + Assign Leave (Unpaid / Paid)
+    </a>
+</div>
+
+<div class="toolbar-box">
+    <form method="get" style="display: flex; align-items: center; gap: 10px;">
+        <label for="date" style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Target Date:</label>
+        <input type="date" id="date" name="date" value="{{ target_date|date:'Y-m-d' }}" style="height: 36px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px;" onchange="this.form.submit()">
+        <noscript><button type="submit" class="btn">Go</button></noscript>
+    </form>
+    <div>
+        <input type="text" id="filterInput" placeholder="Quick search employee..." style="height: 36px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; width: 220px;" onkeyup="filterRoster()">
+    </div>
+</div>
+
+<div style="background: #ffffff; border: 1px solid var(--border); border-radius: 10px; overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+        <thead>
+            <tr style="background: var(--surface-alt); border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;">
+                <th style="padding: 12px 18px;">Emp ID</th>
+                <th style="padding: 12px 18px;">Name</th>
+                <th style="padding: 12px 18px;">Weekly Off</th>
+                <th style="padding: 12px 18px;">Status / Exception Action</th>
+            </tr>
+        </thead>
+        <tbody id="rosterBody">
+            {% for row in roster %}
+            <tr style="border-bottom: 1px solid var(--border);" data-name="{{ row.employee.first_name }} {{ row.employee.last_name }}" data-id="{{ row.employee.employee_id }}">
+                <td style="padding: 12px 18px;"><strong>{{ row.employee.employee_id }}</strong></td>
+                <td style="padding: 12px 18px;">{{ row.employee.first_name }} {{ row.employee.last_name }}</td>
+                <td style="padding: 12px 18px; color: var(--text-muted);">{{ row.employee.get_weekly_off_display }}</td>
+                <td style="padding: 12px 18px;">
+                    {% if row.is_weekly_off %}
+                        <span class="pill-off">Designated Weekly Off</span>
+                    {% elif row.leave %}
+                        <span class="pill-leave">On Leave ({{ row.leave.get_leave_type_display }})</span>
+                    {% else %}
+                        <div style="display: inline-flex; gap: 6px;">
+                            <button type="button" 
+                                    class="status-btn {% if row.status == 'PRESENT' %}active-p{% endif %}" 
+                                    onclick="updateException('{{ row.employee.id }}', 'PRESENT', this)">
+                                Present (Default)
+                            </button>
+                            <button type="button" 
+                                    class="status-btn {% if row.status == 'ABSENT' %}active-a{% endif %}" 
+                                    onclick="updateException('{{ row.employee.id }}', 'ABSENT', this)">
+                                Absent
+                            </button>
+                            <button type="button" 
+                                    class="status-btn {% if row.status == 'HALF_DAY' %}active-hd{% endif %}" 
+                                    onclick="updateException('{{ row.employee.id }}', 'HALF_DAY', this)">
+                                Half Day
+                            </button>
+                        </div>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 32px; color: var(--text-muted);">
+                    No active employees found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function getCsrfToken() {
+    const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (input && input.value) {
+        return input.value;
+    }
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, 10) === 'csrftoken=') {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function updateException(empId, status, btn) {
+    const targetDate = "{{ target_date|date:'Y-m-d' }}";
+    const endpointUrl = "{% url 'toggle_attendance_exception' org_id %}";
+    const token = getCsrfToken();
+
+    if (!token) {
+        alert("CSRF token missing. Please refresh the page.");
+        return;
+    }
+
+    fetch(endpointUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": token
+        },
+        body: JSON.stringify({
+            employee_id: empId,
+            date: targetDate,
+            status: status
+        })
+    })
+    .then(async (res) => {
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+            const errorMsg = data && data.message ? data.message : `Server returned status ${res.status}`;
+            throw new Error(errorMsg);
+        }
+        return data;
+    })
+    .then(data => {
+        if (data && data.status === 'success') {
+            const container = btn.parentElement;
+            container.querySelectorAll('.status-btn').forEach(b => {
+                b.classList.remove('active-p', 'active-a', 'active-hd');
+            });
+            if (status === 'PRESENT') btn.classList.add('active-p');
+            if (status === 'ABSENT') btn.classList.add('active-a');
+            if (status === 'HALF_DAY') btn.classList.add('active-hd');
+        } else {
+            alert((data && data.message) || 'Error updating exception.');
+        }
+    })
+    .catch(err => {
+        console.error("Attendance toggle failed:", err);
+        alert(`Failed to update attendance: ${err.message}`);
+    });
+}
+
+function filterRoster() {
+    const val = document.getElementById('filterInput').value.toLowerCase();
+    document.querySelectorAll('#rosterBody tr').forEach(tr => {
+        const name = (tr.getAttribute('data-name') || '').toLowerCase();
+        const id = (tr.getAttribute('data-id') || '').toLowerCase();
+        tr.style.display = (name.includes(val) || id.includes(val)) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

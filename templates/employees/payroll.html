@@ -447,10 +447,23 @@
 {% else %}
 
 <!-- ALL EMPLOYEES ROSTER VIEW -->
+<!-- ALL EMPLOYEES ROSTER VIEW -->
 <div class="card animate-block">
-    <div class="card-head" style="display: flex; justify-content: space-between; align-items: center;">
+    <div class="card-head">
         <h2>{{ selected_month_date|date:"F Y" }} Payroll Roster ({{ start_date|date:"d M" }} – {{ end_date|date:"d M, Y" }})</h2>
-        <span style="font-size: 0.8rem; color: var(--text-muted);">{{ payroll_data|length }} Employee{{ payroll_data|length|pluralize }}</span>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <a href="{% url 'payroll_summary_pdf' org_id %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&month={{ selected_month_str }}" 
+               target="_blank" 
+               class="btn" 
+               style="height: 30px; padding: 0 12px; font-size: 0.78rem; gap: 6px; background: #ffffff; border: 1px solid #cbd5e1;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span>Download Month PDF</span>
+            </a>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">{{ payroll_data|length }} Employee{{ payroll_data|length|pluralize }}</span>
+        </div>
     </div>
     <div class="table-wrap">
         <table>

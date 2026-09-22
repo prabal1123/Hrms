@@ -25,4 +25,8 @@ urlpatterns = [
     path("leave/<int:pk>/cancel/", views.leave_cancel, name="leave_cancel"),
     path("org/<int:org_id>/payroll/payslip/<int:employee_id>/", views.employee_payslip, name="employee_payslip"),
     path("org/<int:org_id>/my-payslips/", views.my_payslips, name="my_payslips"),
+    path("org/<int:org_id>/payroll/download-pdf/", views.payroll_summary_pdf, name="payroll_summary_pdf"),
+    path("org/<int:org_id>/attendance/exceptions/", views.attendance_exceptions, name="attendance_exceptions"),
+    path("org/<int:org_id>/attendance/toggle-exception/", views.toggle_attendance_exception, name="toggle_attendance_exception"),
+    path("org/<int:org_id>/leaves/assign/", views.leave_apply_management, name="leave_apply_management"),
 ]

@@ -180,12 +180,21 @@
                     </a>
                 {% endif %}
 
-                <a
+                {% comment %} <a
                     class="nav-item {% if request.resolver_match.url_name == 'attendance_list' or request.resolver_match.url_name == 'org_attendance' or request.resolver_match.url_name == 'attendance_create' %}active{% endif %}"
                     href="{% if current_membership and current_membership.role == 'member' %}{% url 'org_attendance' current_org.id %}{% else %}{% url 'attendance_list' current_org.id %}{% endif %}"
                 >
                     <span>◷</span> Attendance
-                </a>
+                </a> {% endcomment %}
+
+                {% if current_membership and current_membership.role != 'member' %}
+                    <a
+                        class="nav-item {% if request.resolver_match.url_name == 'attendance_exceptions' %}active{% endif %}"
+                        href="{% url 'attendance_exceptions' current_org.id %}"
+                    >
+                        <span>✓</span> Attendance
+                    </a>
+                {% endif %}
 
                 <a
                     class="nav-item {% if request.resolver_match.url_name == 'leave_list' or request.resolver_match.url_name == 'leave_create' %}active{% endif %}"
@@ -195,6 +204,13 @@
                 </a>
 
                 {% if current_membership and current_membership.role != 'member' %}
+                    <a
+                        class="nav-item {% if request.resolver_match.url_name == 'leave_apply_management' %}active{% endif %}"
+                        href="{% url 'leave_apply_management' current_org.id %}"
+                    >
+                        <span>✍</span> Assign Leave
+                    </a>
+
                     <a
                         class="nav-item {% if request.resolver_match.url_name == 'payroll' %}active{% endif %}"
                         href="{% url 'payroll' current_org.id %}"

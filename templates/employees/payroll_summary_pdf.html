@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payroll_Register_{{ organization.name|slugify }}_{{ pay_month|slugify }}</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #0f172a;
+        }
+
+        body {
+            background-color: #f1f5f9;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .actions-bar {
+            width: 297mm;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #1e293b;
+        }
+
+        .btn-primary {
+            background: #4f46e5;
+            color: #ffffff;
+            border-color: #4f46e5;
+        }
+
+        .sheet {
+            width: 297mm;
+            min-height: 210mm;
+            padding: 12mm 15mm;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #0f172a;
+            margin-bottom: 12px;
+        }
+
+        .header h1 {
+            font-size: 1.3rem;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+        }
+
+        .header p {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .report-title {
+            text-align: right;
+        }
+
+        .report-title h2 {
+            font-size: 1.1rem;
+            color: #4f46e5;
+            text-transform: uppercase;
+        }
+
+        .meta-strip {
+            display: flex;
+            justify-content: space-between;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 8px 14px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.76rem;
+            text-align: left;
+        }
+
+        th {
+            background: #0f172a;
+            color: #ffffff;
+            padding: 8px 6px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            border: 1px solid #0f172a;
+        }
+
+        td {
+            padding: 7px 6px;
+            border: 1px solid #cbd5e1;
+            vertical-align: middle;
+        }
+
+        tr:nth-child(even) td {
+            background: #f8fafc;
+        }
+
+        .num {
+            text-align: right;
+        }
+
+        .totals-row td {
+            background: #eef2ff !important;
+            font-weight: 800;
+            border-top: 2px solid #4f46e5;
+            border-bottom: 2px solid #4f46e5;
+        }
+
+        .signatures {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 36px;
+            padding-top: 10px;
+        }
+
+        .sig-block {
+            text-align: center;
+            width: 180px;
+        }
+
+        .sig-line {
+            border-top: 1px solid #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .sig-block span {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+
+        @media print {
+            body {
+                background: #ffffff;
+                padding: 0;
+            }
+            .actions-bar {
+                display: none !important;
+            }
+            .sheet {
+                border: none;
+                box-shadow: none;
+                width: 100%;
+                min-height: auto;
+                padding: 0;
+            }
+            @page {
+                size: A4 landscape;
+                margin: 8mm 10mm;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="actions-bar">
+        <a href="javascript:history.back()" class="btn">&larr; Back to Payroll</a>
+        <button onclick="window.print()" class="btn btn-primary">
+            Download / Print Roster PDF
+        </button>
+    </div>
+
+    <div class="sheet">
+        <div>
+            <div class="header">
+                <div>
+                    <h1>{{ organization.name }}</h1>
+                    <p>Official Monthly Payroll &amp; Attendance Disbursement Register</p>
+                </div>
+                <div class="report-title">
+                    <h2>{{ pay_month }} Register</h2>
+                    <span style="font-size: 0.78rem; color: #475569;">{{ pay_period }}</span>
+                </div>
+            </div>
+
+            <div class="meta-strip">
+                <span>Cycle Days: <strong>{{ total_days }} Days</strong></span>
+                <span>Total Employees: <strong>{{ payroll_data|length }}</strong></span>
+                <span>Generated: <strong>{{ generated_at|date:"d M Y, h:i A" }}</strong></span>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align: center;">#</th>
+                        <th>Emp ID</th>
+                        <th>Employee Name</th>
+                        <th class="num">Present</th>
+                        <th class="num">Leave</th>
+                        <th class="num">Payable</th>
+                        <th class="num">Base Salary</th>
+                        <th class="num">Gross Earned</th>
+                        <th class="num">PF</th>
+                        <th class="num">ESI</th>
+                        <th class="num">Other</th>
+                        <th class="num">Total Ded.</th>
+                        <th class="num">Net Payable</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in payroll_data %}
+                    <tr>
+                        <td style="text-align: center;">{{ forloop.counter }}</td>
+                        <td><strong>{{ item.employee.employee_id }}</strong></td>
+                        <td>{{ item.employee.first_name }} {{ item.employee.last_name }}</td>
+                        <td class="num">{{ item.present_days }}</td>
+                        <td class="num">{{ item.paid_leave_days }}</td>
+                        <td class="num" style="font-weight: 700; color: #4f46e5;">{{ item.payable_days }}</td>
+                        <td class="num">₹ {{ item.base_salary|floatformat:2 }}</td>
+                        <td class="num" style="font-weight: 700;">₹ {{ item.gross_earned|floatformat:2 }}</td>
+                        <td class="num" style="color: #b91c1c;">₹ {{ item.pf|floatformat:2 }}</td>
+                        <td class="num" style="color: #b91c1c;">₹ {{ item.esi|floatformat:2 }}</td>
+                        <td class="num" style="color: #b91c1c;">₹ {{ item.other_deductions|floatformat:2 }}</td>
+                        <td class="num" style="color: #b91c1c; font-weight: 600;">₹ {{ item.total_deductions|floatformat:2 }}</td>
+                        <td class="num" style="font-weight: 800; color: #047857;">₹ {{ item.net_salary|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="13" style="text-align: center; padding: 24px; color: #64748b;">
+                            No active employees found for this cycle.
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    {% if payroll_data %}
+                    <tr class="totals-row">
+                        <td colspan="6" style="text-align: right; text-transform: uppercase;">Total Company Outlay:</td>
+                        <td class="num">₹ {{ totals.base_salary|floatformat:2 }}</td>
+                        <td class="num">₹ {{ totals.gross_earned|floatformat:2 }}</td>
+                        <td class="num">₹ {{ totals.pf|floatformat:2 }}</td>
+                        <td class="num">₹ {{ totals.esi|floatformat:2 }}</td>
+                        <td class="num">₹ {{ totals.other_deductions|floatformat:2 }}</td>
+                        <td class="num">₹ {{ totals.total_deductions|floatformat:2 }}</td>
+                        <td class="num" style="color: #047857;">₹ {{ totals.net_salary|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <div>
+            <div class="signatures">
+                <div class="sig-block">
+                    <div class="sig-line"></div>
+                    <span>Prepared By (HR)</span>
+                </div>
+                <div class="sig-block">
+                    <div class="sig-line"></div>
+                    <span>Verified By (Finance)</span>
+                </div>
+                <div class="sig-block">
+                    <div class="sig-line"></div>
+                    <span>Authorized Director</span>
+                </div>
+            </div>
+            <p style="font-size: 0.65rem; color: #94a3b8; text-align: center; margin-top: 14px;">
+                CONFIDENTIAL — Generated from {{ organization.name }} HRMS. Valid with authorized signatures only.
+            </p>
+        </div>
+    </div>
+
+</body>
+</html>
