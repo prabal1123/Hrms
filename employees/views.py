@@ -1118,7 +1118,6 @@ def employee_grant_login(request, uuid):
     employee = get_object_or_404(Employee.objects.select_related("organization"), uuid=uuid)
     membership = get_membership(request.user, employee.organization_id)
 
-    # Admin/owner only, enforced server-side
     if not permissions.is_admin(membership):
         messages.error(request, "Only admins can grant login access.")
         return redirect("employee_dashboard", org_id=employee.organization_id)
@@ -1127,12 +1126,11 @@ def employee_grant_login(request, uuid):
         try:
             user = grant_login(employee)
 
-            # Generate and send password setup email
             if user.email:
                 form = PasswordResetForm(data={"email": user.email})
                 if form.is_valid():
                     host = request.get_host()
-                    # Ensure port 8082 is retained when accessed via the server IP
+                    # Ensure port 8082 is always present for the EC2 IP
                     if "18.61.200.14" in host and ":8082" not in host:
                         host = "18.61.200.14:8082"
 
@@ -1160,7 +1158,6 @@ def employee_grant_login(request, uuid):
             messages.error(request, str(exc))
 
     return redirect("employee_detail", uuid=employee.uuid)
-
 
 @login_required
 def attendance_list(request, org_id):
