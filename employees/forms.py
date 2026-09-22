@@ -33,18 +33,70 @@ SUPERVISOR_ROLES = ("owner", "admin", "manager")
 ADMIN_ONLY_FIELDS = ("supervisor", "access_group", "salary", "pf", "esi", "other_deductions")
 
 
-class EmployeeSelfForm(forms.ModelForm):
-    """Limited form for an employee editing their OWN profile.
+# class EmployeeSelfForm(forms.ModelForm):
+#     """Limited form for an employee editing their OWN profile.
 
-    Only these fields exist on the form, so salary, PF, ESI, deductions,
-    active status, supervisor and access group can never be changed
-    through it, even with a hand-crafted POST.
+#     Only these fields exist on the form, so salary, PF, ESI, deductions,
+#     active status, supervisor and access group can never be changed
+#     through it, even with a hand-crafted POST.
+#     """
+
+#     class Meta:
+#         model = Employee
+#         fields = ["first_name", "last_name", "email", "phone"]
+
+class EmployeeSelfForm(forms.ModelForm):
     """
+    Limited form for an employee editing their OWN profile.
+
+    - Name and official company email are locked (disabled=True).
+    - Salary, statutory deductions, supervisor, role, and active status 
+      are omitted completely from fields.
+    - Employees can freely manage phone, home address, and bank payout details.
+    """
+
+    first_name = forms.CharField(
+        disabled=True,
+        required=False,
+        label="First Name",
+        help_text="Contact an administrator to request a legal name change."
+    )
+    last_name = forms.CharField(
+        disabled=True,
+        required=False,
+        label="Last Name"
+    )
+    email = forms.EmailField(
+        disabled=True,
+        required=False,
+        label="Work Email",
+        help_text="Work email is tied to company single sign-on and cannot be altered directly."
+    )
 
     class Meta:
         model = Employee
-        fields = ["first_name", "last_name", "email", "phone"]
+        fields = [
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "address",
+            "bank_name",
+            "bank_account_no",
+            "ifsc_no",
+        ]
+        widgets = {
+            "address": forms.Textarea(attrs={"rows": 2, "placeholder": "Current residential address"}),
+        }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Ensure editable self-service fields are not strictly blocking if left blank
+        for field_name in ("phone", "address", "bank_name", "bank_account_no", "ifsc_no"):
+            if field_name in self.fields:
+                self.fields[field_name].required = False
+                
 
 # class EmployeeForm(forms.ModelForm):
 #     access_group = forms.ChoiceField(
@@ -429,15 +481,48 @@ class AttendanceForm(forms.ModelForm):
         }
 
 
+# class LeaveForm(forms.ModelForm):
+#     class Meta:
+#         model = Leave
+#         fields = ["start_date", "end_date", "leave_type", "status", "reason"]
+#         widgets = {
+#             "start_date": forms.DateInput(attrs={"type": "date"}),
+#             "end_date": forms.DateInput(attrs={"type": "date"}),
+#         }
+
+
+
 class LeaveForm(forms.ModelForm):
+    leave_type = forms.ChoiceField(
+        choices=[("", "— Select leave type —")] + list(Leave._meta.get_field("leave_type").choices),
+        required=True,
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
     class Meta:
         model = Leave
-        fields = ["start_date", "end_date", "leave_type", "status", "reason"]
+        fields = [
+            "leave_type",
+            "start_date",
+            "end_date",
+            "reason",
+        ]
         widgets = {
-            "start_date": forms.DateInput(attrs={"type": "date"}),
-            "end_date": forms.DateInput(attrs={"type": "date"}),
+            "start_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "end_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "reason": forms.Textarea(attrs={"rows": 3, "placeholder": "Reason for leave...", "class": "form-control"}),
         }
 
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get("start_date")
+        end_date = cleaned_data.get("end_date")
+
+        if start_date and end_date and start_date > end_date:
+            self.add_error("end_date", "End date cannot be earlier than start date.")
+
+        return cleaned_data
+      
 
 class EmployeeImportUploadForm(forms.Form):
     file = forms.FileField(label="Excel file (.xlsx)")

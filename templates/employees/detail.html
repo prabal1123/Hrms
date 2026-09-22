@@ -380,7 +380,11 @@
 </style>
 
 <div class="breadcrumb animate-block">
-    <a href="{% url 'employee_list' organization.id %}">{{ organization.name }}</a>
+    {% if membership.role != "member" %}
+        <a href="{% url 'employee_list' organization.id %}">{{ organization.name }}</a>
+    {% else %}
+        <a href="{% url 'employee_dashboard' organization.id %}">{{ organization.name }}</a>
+    {% endif %}
     <span>›</span>
     <span>{{ employee.first_name }} {{ employee.last_name }}</span>
 </div>
@@ -400,9 +404,27 @@
             </div>
 
             <div class="sidebar-actions">
+                <!-- Edit Profile Button: Available to Admins OR the Employee Themselves -->
+                {% if can_edit or is_self or employee.user_id == request.user.id %}
+                    <a class="btn btn-primary" href="{% url 'employee_update' employee.uuid %}">
+                        {% if is_self or employee.user_id == request.user.id %}Edit My Profile{% else %}Edit Profile{% endif %}
+                    </a>
+                {% endif %}
+
+                <!-- Member Self-Service Action: Direct Payslip Access & Leave -->
+                {% if is_self or employee.user_id == request.user.id %}
+                    <a class="btn" href="{% url 'my_payslips' organization.id %}" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        <span>View My Payslips</span>
+                    </a>
+                    <a class="btn" href="{% url 'leave_create' employee.id %}">Apply for Leave</a>
+                {% endif %}
+
+                <!-- Management-Only Actions -->
                 {% if membership.role != "member" %}
-                    <a class="btn btn-primary" href="{% url 'employee_update' employee.uuid %}">Edit Profile</a>
-                    
                     {% if can_grant_login %}
                     <form method="POST" action="{% url 'employee_grant_login' employee.uuid %}" onsubmit="return confirm('Create a login account for this employee?');">
                         {% csrf_token %}
@@ -410,12 +432,14 @@
                     </form>
                     {% endif %}
                     
+                    {% if not is_self %}
                     <form method="POST" action="{% url 'employee_deactivate' employee.uuid %}" onsubmit="return confirm('{% if employee.is_active %}Deactivate{% else %}Activate{% endif %} this employee?');">
                         {% csrf_token %}
                         <button type="submit" class="btn {% if employee.is_active %}btn-danger{% endif %}">
                             {% if employee.is_active %}Deactivate Account{% else %}Activate Account{% endif %}
                         </button>
                     </form>
+                    {% endif %}
                 {% endif %}
             </div>
         </div>
@@ -435,7 +459,7 @@
         <section id="profile" class="content-card animate-block delay-2">
             <div class="card-header">
                 <div>
-                    <h2>Profile & Payroll</h2>
+                    <h2>Profile &amp; Payroll</h2>
                     <p>{% if can_view_salary %}Financial breakdown and basic details.{% else %}Basic employee information.{% endif %}</p>
                 </div>
             </div>
@@ -483,13 +507,13 @@
         <section id="identity" class="content-card animate-block delay-2">
             <div class="card-header">
                 <div>
-                    <h2>Identity & Bank Details</h2>
+                    <h2>Identity &amp; Bank Details</h2>
                     <p>Secure information visible only to admins and this employee.</p>
                 </div>
             </div>
 
             <div class="data-grid">
-                <div class="data-box"><span>Aadhar No.</span><strong>{{ employee.aadhar_no|default:"—" }}</strong></div>
+                <div class="data-box"><span>Aadhaar No.</span><strong>{{ employee.aadhar_no|default:"—" }}</strong></div>
                 <div class="data-box"><span>PAN No.</span><strong>{{ employee.pan_no|default:"—" }}</strong></div>
                 <div class="data-box"><span>UAN No.</span><strong>{{ employee.uan_no|default:"—" }}</strong></div>
                 <div class="data-box"><span>ESIC No.</span><strong>{{ employee.esic_no|default:"—" }}</strong></div>
@@ -600,12 +624,10 @@
                     <h2>Leave Requests</h2>
                     <p>Time off history and pending approvals.</p>
                 </div>
-                {% if membership.role != "member" %}
-                    <a class="btn btn-sm" href="{% url 'leave_create' employee.id %}">+ Add Leave</a>
-                {% endif %}
+                <a class="btn btn-sm" href="{% url 'leave_create' employee.id %}">+ Add Leave</a>
             </div>
 
-            {% if can_view_records %}
+            {% if can_view_records or is_self %}
                 {% if leaves %}
                     <div class="table-container">
                         <table>
@@ -637,7 +659,7 @@
                                                 {% csrf_token %}
                                                 <button type="submit" class="link-btn text-danger">Reject</button>
                                             </form>
-                                        {% elif membership.role == "member" and item.employee.user_id == request.user.id and item.status == "pending" %}
+                                        {% elif item.employee.user_id == request.user.id and item.status == "pending" %}
                                             <form method="POST" action="{% url 'leave_cancel' item.pk %}" style="display:inline;" onsubmit="return confirm('Cancel this leave request?');">
                                                 {% csrf_token %}
                                                 <button type="submit" class="link-btn text-danger">Cancel</button>

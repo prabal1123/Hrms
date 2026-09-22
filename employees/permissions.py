@@ -142,3 +142,10 @@ def can_view_sensitive(membership, employee):
 def can_edit_sensitive(membership):
     """Only admins may change identity / bank details."""
     return is_admin(membership)
+
+
+def can_manage_employees(membership):
+    """Return True if the user has administrative or management privileges over employees."""
+    if not membership:
+        return False
+    return membership.role in ("owner", "admin", "manager")

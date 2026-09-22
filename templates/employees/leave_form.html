@@ -184,6 +184,7 @@
   .form-group label .req {
     color: var(--danger);
   }
+  .form-group select,
   .form-group input[type="date"],
   .form-group textarea {
     width: 100%;
@@ -196,6 +197,7 @@
     background: var(--surface);
     transition: all 0.15s ease-in-out;
   }
+  .form-group select,
   .form-group input[type="date"] {
     height: 40px;
   }
@@ -203,6 +205,7 @@
     min-height: 85px;
     resize: vertical;
   }
+  .form-group select:focus,
   .form-group input:focus,
   .form-group textarea:focus {
     outline: none;
@@ -313,6 +316,17 @@
 
         <div class="leave-card-body">
             <div class="form-grid">
+
+                <!-- Leave Type Dropdown -->
+                <div class="form-group col-span-2">
+                    <label for="{{ form.leave_type.id_for_label }}">Leave Type <span class="req">*</span></label>
+                    {{ form.leave_type }}
+                    {% if form.leave_type.errors %}
+                        <div class="field-error">{{ form.leave_type.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Start Date -->
                 <div class="form-group">
                     <label for="{{ form.start_date.id_for_label }}">Start Date <span class="req">*</span></label>
                     {{ form.start_date }}
@@ -321,6 +335,7 @@
                     {% endif %}
                 </div>
 
+                <!-- End Date -->
                 <div class="form-group">
                     <label for="{{ form.end_date.id_for_label }}">End Date <span class="req">*</span></label>
                     {{ form.end_date }}
@@ -337,6 +352,7 @@
                     </div>
                 </div>
 
+                <!-- Reason -->
                 <div class="form-group col-span-2">
                     <label for="{{ form.reason.id_for_label }}">Reason for Leave</label>
                     {{ form.reason }}
@@ -405,7 +421,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (startDateInput && endDateInput) {
         startDateInput.addEventListener('change', function() {
-            // Automatically set end date min constraint
             if (startDateInput.value) {
                 endDateInput.min = startDateInput.value;
             }
@@ -413,7 +428,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         endDateInput.addEventListener('change', calculateDuration);
 
-        // Run once on load in case browser restored previous inputs
         calculateDuration();
     }
 });

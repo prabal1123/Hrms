@@ -149,9 +149,6 @@
     padding: 14px 20px;
     background: var(--surface-alt);
     border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
   }
   .card-head h2 {
     font-size: 0.95rem;
@@ -195,7 +192,7 @@
     color: var(--text-main);
   }
 
-  /* Attendance Calendar Grid (supports cross-month cycles) */
+  /* Attendance Calendar Grid */
   .cal-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
@@ -295,7 +292,7 @@
         <input type="hidden" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
         <input type="hidden" name="month" value="{{ selected_month_str }}">
         <button type="submit" class="btn btn-primary" onclick="return confirm('Lock and save payroll records for this period ({{ start_date|date:'d M' }} - {{ end_date|date:'d M, Y' }})?');">
-            Lock & Save Cycle Records
+            Lock &amp; Save Cycle Records
         </button>
     </form>
     {% endif %}
@@ -342,13 +339,27 @@
 
     <!-- Calculated Salary Breakdown Slip -->
     <div class="card">
-        <div class="card-head">
-            <h2>Salary Computation</h2>
-            {% if single_calc.confirmed %}
-                <span class="badge badge-locked">Locked</span>
-            {% else %}
-                <span class="badge badge-draft">Draft</span>
-            {% endif %}
+        <div class="card-head" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <h2 style="margin: 0; white-space: nowrap;">Salary Computation</h2>
+            <div style="display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                <a href="{% url 'employee_payslip' org_id selected_employee.id %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&month={{ selected_month_str }}" 
+                   target="_blank"
+                   class="btn" 
+                   style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #ffffff; color: var(--text-main); text-decoration: none;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted); flex-shrink: 0;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    <span>Download Payslip</span>
+                </a>
+                {% if single_calc.confirmed %}
+                    <span class="badge badge-locked" style="padding: 3px 8px; font-size: 0.72rem; white-space: nowrap; flex-shrink: 0;">Locked</span>
+                {% else %}
+                    <span class="badge badge-draft" style="padding: 3px 8px; font-size: 0.72rem; white-space: nowrap; flex-shrink: 0;">Draft</span>
+                {% endif %}
+            </div>
         </div>
         <div class="card-body">
             <div style="margin-bottom: 14px;">
@@ -399,7 +410,7 @@
 
     <!-- Attendance Reconciliation Calendar -->
     <div class="card">
-        <div class="card-head">
+        <div class="card-head" style="display: flex; justify-content: space-between; align-items: center;">
             <h2>Attendance ({{ start_date|date:"d M" }} – {{ end_date|date:"d M" }})</h2>
             <div style="display: flex; gap: 6px;">
                 <span class="cal-status status-p">P</span>
@@ -437,7 +448,7 @@
 
 <!-- ALL EMPLOYEES ROSTER VIEW -->
 <div class="card animate-block">
-    <div class="card-head">
+    <div class="card-head" style="display: flex; justify-content: space-between; align-items: center;">
         <h2>{{ selected_month_date|date:"F Y" }} Payroll Roster ({{ start_date|date:"d M" }} – {{ end_date|date:"d M, Y" }})</h2>
         <span style="font-size: 0.8rem; color: var(--text-muted);">{{ payroll_data|length }} Employee{{ payroll_data|length|pluralize }}</span>
     </div>
@@ -479,7 +490,7 @@
                     </td>
                     <td style="text-align: right;">
                         <a href="?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&month={{ selected_month_str }}&employee_id={{ item.employee.id }}" class="btn" style="height: 28px; padding: 0 10px; font-size: 0.78rem;">
-                            View Slip & Calendar &rarr;
+                            View Slip &amp; Calendar &rarr;
                         </a>
                     </td>
                 </tr>

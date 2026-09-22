@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payslip_{{ employee.employee_id }}_{{ pay_month|slugify }}</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #0f172a;
+        }
+
+        body {
+            background-color: #f1f5f9;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Print Bar Controls */
+        .actions-bar {
+            width: 210mm;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #1e293b;
+            transition: all 0.15s ease;
+        }
+
+        .btn-primary {
+            background: #4f46e5;
+            color: #ffffff;
+            border-color: #4f46e5;
+        }
+
+        .btn-primary:hover {
+            background: #4338ca;
+        }
+
+        /* Industrial Payslip Sheet (Standard A4 dimensions) */
+        .payslip-sheet {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 16mm 18mm;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Sheet Header */
+        .slip-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding-bottom: 14px;
+            border-bottom: 2px solid #0f172a;
+        }
+
+        .org-brand h1 {
+            font-size: 1.4rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #0f172a;
+        }
+
+        .org-brand p {
+            font-size: 0.78rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .slip-title {
+            text-align: right;
+        }
+
+        .slip-title h2 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #4f46e5;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .slip-title span {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        /* Metadata Grid */
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 18px 0;
+            padding: 12px 14px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .meta-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
+        }
+
+        .meta-value {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #0f172a;
+            margin-top: 2px;
+        }
+
+        /* Two-Column Earnings & Deductions Table */
+        .financial-breakdown {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #cbd5e1;
+            margin-top: 10px;
+        }
+
+        .financial-breakdown th {
+            width: 50%;
+            padding: 8px 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: #0f172a;
+            color: #ffffff;
+            border: 1px solid #0f172a;
+        }
+
+        .split-sub-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .split-sub-table td {
+            padding: 8px 12px;
+            font-size: 0.82rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .split-sub-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .split-sub-table td.amount {
+            text-align: right;
+            font-weight: 600;
+        }
+
+        /* Totals Bar */
+        .totals-row td {
+            padding: 10px 12px;
+            background: #f8fafc;
+            font-size: 0.85rem;
+            font-weight: 700;
+            border-top: 2px solid #cbd5e1;
+            border-bottom: 2px solid #cbd5e1;
+        }
+
+        /* Net Pay Box */
+        .net-pay-banner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 18px;
+            background: #eef2ff;
+            border: 1.5px solid #c7d2fe;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+
+        .net-pay-label {
+            font-size: 0.88rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #3730a3;
+        }
+
+        .net-pay-amount {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #4f46e5;
+        }
+
+        /* Statutory & Identity Footer Grid */
+        .statutory-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding-top: 14px;
+            border-top: 1px dashed #cbd5e1;
+            margin-top: 10px;
+        }
+
+        /* Signatures */
+        .signatures {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 60px;
+            padding-top: 12px;
+        }
+
+        .sig-block {
+            text-align: center;
+            width: 180px;
+        }
+
+        .sig-line {
+            border-top: 1px solid #0f172a;
+            margin-bottom: 6px;
+        }
+
+        .sig-block span {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+
+        .slip-footer-note {
+            font-size: 0.65rem;
+            color: #94a3b8;
+            text-align: center;
+            margin-top: 24px;
+        }
+
+        /* Print Media Styles */
+        @media print {
+            body {
+                background: #ffffff;
+                padding: 0;
+            }
+            .actions-bar {
+                display: none !important;
+            }
+            .payslip-sheet {
+                border: none;
+                box-shadow: none;
+                width: 100%;
+                min-height: auto;
+                padding: 0;
+            }
+            @page {
+                size: A4 portrait;
+                margin: 12mm 15mm;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Print / Export Bar -->
+    <div class="actions-bar">
+        <a href="javascript:history.back()" class="btn">&larr; Back</a>
+        <button onclick="window.print()" class="btn btn-primary">
+            Download / Print PDF
+        </button>
+    </div>
+
+    <!-- Official Payslip Document -->
+    <div class="payslip-sheet">
+        <div>
+            <!-- Header -->
+            <div class="slip-header">
+                <div class="org-brand">
+                    <h1>{{ organization.name }}</h1>
+                    <p>Official Payslip &amp; Compensation Statement</p>
+                </div>
+                <div class="slip-title">
+                    <h2>PAYSLIP</h2>
+                    <span>{{ pay_month }}</span>
+                </div>
+            </div>
+
+            <!-- Employee & Cycle Metadata -->
+            <div class="meta-grid">
+                <div class="meta-item">
+                    <span class="meta-label">Employee ID</span>
+                    <span class="meta-value">{{ employee.employee_id }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Employee Name</span>
+                    <span class="meta-value">{{ employee.first_name }} {{ employee.last_name }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Designation</span>
+                    <span class="meta-value">{{ employee.designation|default:"Staff" }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Pay Period</span>
+                    <span class="meta-value" style="font-size: 0.74rem;">{{ start_date|date:"d M" }} - {{ end_date|date:"d M, Y" }}</span>
+                </div>
+
+                <div class="meta-item">
+                    <span class="meta-label">Cycle Total Days</span>
+                    <span class="meta-value">{{ calc.total_days }} days</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Present Days</span>
+                    <span class="meta-value">{{ calc.present_days }} days</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Approved Leave</span>
+                    <span class="meta-value">{{ calc.paid_leave_days }} days</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Payable Days</span>
+                    <span class="meta-value" style="color: #4f46e5;">{{ calc.payable_days }} days</span>
+                </div>
+            </div>
+
+            <!-- Earnings vs Deductions Split Table -->
+            <table class="financial-breakdown">
+                <thead>
+                    <tr>
+                        <th>Earnings</th>
+                        <th>Deductions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="vertical-align: top;">
+                        <!-- Earnings Column -->
+                        <td style="padding: 0; border-right: 1px solid #cbd5e1;">
+                            <table class="split-sub-table">
+                                <tr>
+                                    <td>Base Rate (Monthly)</td>
+                                    <td class="amount">₹ {{ calc.base_salary|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Earned Gross Pay</td>
+                                    <td class="amount" style="color: #0f172a; font-weight: 700;">₹ {{ calc.gross_earned|floatformat:2 }}</td>
+                                </tr>
+                            </table>
+                        </td>
+
+                        <!-- Deductions Column -->
+                        <td style="padding: 0;">
+                            <table class="split-sub-table">
+                                <tr>
+                                    <td>Provident Fund (PF)</td>
+                                    <td class="amount">₹ {{ calc.pf|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Employee State Insurance (ESI)</td>
+                                    <td class="amount">₹ {{ calc.esi|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Other Deductions / Tax</td>
+                                    <td class="amount">₹ {{ calc.other_deductions|floatformat:2 }}</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Totals -->
+                    <tr class="totals-row">
+                        <td style="border-right: 1px solid #cbd5e1;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Total Gross Earnings</span>
+                                <span>₹ {{ calc.gross_earned|floatformat:2 }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="display: flex; justify-content: space-between; color: #b91c1c;">
+                                <span>Total Deductions</span>
+                                <span>₹ {{ calc.total_deductions|floatformat:2 }}</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Net Pay Highlight -->
+            <div class="net-pay-banner">
+                <div>
+                    <div class="net-pay-label">Net Take-Home Salary</div>
+                    <div style="font-size: 0.75rem; color: #475569;">Gross Earned less Total Statutory Deductions</div>
+                </div>
+                <div class="net-pay-amount">
+                    ₹ {{ calc.net_salary|floatformat:2 }}
+                </div>
+            </div>
+
+            <!-- Banking & Identity Breakdown -->
+            <div class="statutory-grid">
+                <div class="meta-item">
+                    <span class="meta-label">Bank Name</span>
+                    <span class="meta-value">{{ employee.bank_name|default:"—" }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Bank Account No.</span>
+                    <span class="meta-value">{{ employee.bank_account_no|default:"—" }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">IFSC Code</span>
+                    <span class="meta-value">{{ employee.ifsc_no|default:"—" }}</span>
+                </div>
+
+                <div class="meta-item">
+                    <span class="meta-label">PAN No.</span>
+                    <span class="meta-value">{{ employee.pan_no|default:"—" }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">UAN No.</span>
+                    <span class="meta-value">{{ employee.uan_no|default:"—" }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">ESIC No.</span>
+                    <span class="meta-value">{{ employee.esic_no|default:"—" }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Document Sign-Off & Verification Footer -->
+        <div>
+            <div class="signatures">
+                <div class="sig-block">
+                    <div class="sig-line"></div>
+                    <span>Employee Signature</span>
+                </div>
+                <div class="sig-block">
+                    <div class="sig-line"></div>
+                    <span>Authorized Signatory</span>
+                </div>
+            </div>
+            <div class="slip-footer-note">
+                This is a computer-generated document issued by {{ organization.name }}. Confidential.
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
