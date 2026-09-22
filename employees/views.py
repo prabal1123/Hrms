@@ -1074,7 +1074,7 @@ def employee_detail(request, uuid):
 
     can_edit = can_manage_employees or is_self
     can_view_sensitive = is_self or permissions.can_view_sensitive(membership, employee)
-
+    can_grant_login = permissions.is_admin(membership) and employee.user_id is None
     context = {
         "employee": employee,
         "organization": membership.organization,
@@ -1084,6 +1084,7 @@ def employee_detail(request, uuid):
         "is_self": is_self,
         "can_edit": can_edit,
         "can_manage_employees": can_manage_employees,
+        "can_grant_login": can_grant_login,  # <-- 2. Expose to template
         "can_view_sensitive": can_view_sensitive,
     }
     return render(request, "employees/detail.html", context)
