@@ -5,7 +5,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from accounts.services import GrantLoginError, grant_login
+from accounts.services import GrantLoginError, grant_login, public_domain
 from organizations.models import OrganizationMember
 from .bulk_import import batch, columns as import_columns, files as import_files, parse_upload
 from .bulk_import.commit import commit_rows
@@ -27,6 +27,10 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from . import permissions
 
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
 
 def get_membership(user, org_id):
@@ -141,6 +145,52 @@ def employee_detail(request, uuid):
 
 
 
+# @login_required
+# def employee_grant_login(request, uuid):
+#     employee = get_object_or_404(Employee.objects.select_related("organization"), uuid=uuid)
+#     membership = get_membership(request.user, employee.organization_id)
+
+#     if not permissions.is_admin(membership):
+#         messages.error(request, "Only admins can grant login access.")
+#         return redirect("employee_dashboard", org_id=employee.organization_id)
+
+#     if request.method == "POST":
+#         try:
+#             user = grant_login(employee)
+
+#             if user.email:
+#                 form = PasswordResetForm(data={"email": user.email})
+#                 if form.is_valid():
+#                     host = request.get_host()
+#                     # Ensure port 8082 is always present for the EC2 IP
+#                     if "18.61.200.14" in host and ":8082" not in host:
+#                         host = "18.61.200.14:8082"
+
+#                     form.save(
+#                         request=request,
+#                         use_https=False,
+#                         domain_override=host,
+#                         from_email=settings.DEFAULT_FROM_EMAIL,
+#                     )
+#                     messages.success(
+#                         request,
+#                         f"Login created for {user.email}. A password setup link has been sent to their inbox.",
+#                     )
+#                 else:
+#                     messages.warning(
+#                         request,
+#                         f"Login created for {user.email}, but could not validate email to send setup link.",
+#                     )
+#             else:
+#                 messages.success(
+#                     request,
+#                     "Login created, but no email is on file to send a password link.",
+#                 )
+#         except GrantLoginError as exc:
+#             messages.error(request, str(exc))
+
+#     return redirect("employee_detail", uuid=employee.uuid)
+
 @login_required
 def employee_grant_login(request, uuid):
     employee = get_object_or_404(Employee.objects.select_related("organization"), uuid=uuid)
@@ -155,28 +205,38 @@ def employee_grant_login(request, uuid):
             user = grant_login(employee)
 
             if user.email:
-                form = PasswordResetForm(data={"email": user.email})
-                if form.is_valid():
-                    host = request.get_host()
-                    # Ensure port 8082 is always present for the EC2 IP
-                    if "18.61.200.14" in host and ":8082" not in host:
-                        host = "18.61.200.14:8082"
+                # 1. Determine host, correcting for the missing :8082 on EC2
+                host = public_domain(request)
+                protocol = "https" if request.is_secure() else "http"
+                base_url = f"{protocol}://{host}"
 
-                    form.save(
-                        request=request,
-                        use_https=False,
-                        domain_override=host,
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                    )
-                    messages.success(
-                        request,
-                        f"Login created for {user.email}. A password setup link has been sent to their inbox.",
-                    )
-                else:
-                    messages.warning(
-                        request,
-                        f"Login created for {user.email}, but could not validate email to send setup link.",
-                    )
+                # 2. Build one-time password setup token & link
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                token = default_token_generator.make_token(user)
+                setup_url = f"{base_url}/login/set-password/{uid}/{token}/"
+
+                # 3. Deliver password setup email directly
+                email_subject = "Set up your account password"
+                email_body = (
+                    f"Hello {user.first_name or 'there'},\n\n"
+                    f"Your login for {membership.organization.name} has been provisioned.\n"
+                    f"Please click the link below to set your password and access your dashboard:\n\n"
+                    f"{setup_url}\n\n"
+                    f"This link will expire shortly.\n"
+                )
+
+                send_mail(
+                    subject=email_subject,
+                    message=email_body,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    fail_silently=False,
+                )
+
+                messages.success(
+                    request,
+                    f"Login created for {user.email}. A password setup link has been sent to their inbox.",
+                )
             else:
                 messages.success(
                     request,
@@ -184,8 +244,14 @@ def employee_grant_login(request, uuid):
                 )
         except GrantLoginError as exc:
             messages.error(request, str(exc))
+        except Exception as exc:
+            messages.warning(
+                request,
+                f"Login was created, but failed to send setup email: {exc}",
+            )
 
     return redirect("employee_detail", uuid=employee.uuid)
+
 
 @login_required
 def attendance_list(request, org_id):

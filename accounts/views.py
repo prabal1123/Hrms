@@ -17,6 +17,7 @@ from .forms import (
     RegisterForm,
 )
 from .lookup import find_user
+from .services import public_domain
 from organizations.models import OrganizationMember
 
 logger = logging.getLogger(__name__)
@@ -178,6 +179,7 @@ def login_setup_pending(request):
                     form.save(
                         request=request,
                         use_https=request.is_secure(),
+                        domain_override=public_domain(request),
                         email_template_name="accounts/setup_email.txt",
                         subject_template_name="accounts/setup_email_subject.txt",
                     )

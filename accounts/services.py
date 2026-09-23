@@ -151,8 +151,39 @@ from employees.models import Employee
 from organizations.models import OrganizationMember
 
 
+# class GrantLoginError(Exception):
+#     """Raised with a user-friendly message when a login can't be created."""
+
 class GrantLoginError(Exception):
     """Raised with a user-friendly message when a login can't be created."""
+
+
+# The EC2 box terminates the app behind nginx on a non-standard port. Nginx
+# does not (yet) forward a correct X-Forwarded-Port header for this port, so
+# with USE_X_FORWARDED_HOST/PORT enabled, request.get_host() and
+# get_current_site(request).domain silently drop the port. That breaks any
+# link built with Django's PasswordResetForm.save() (it defaults to
+# get_current_site(request) when no domain_override is passed), including
+# the very first "set your password" email a newly provisioned user gets.
+#
+# This is a stopgap at the application layer; the real fix is to have nginx
+# send `proxy_set_header X-Forwarded-Port 8082;` for this app so
+# request.get_host() reports the port correctly on its own.
+EC2_HOST_WITHOUT_PORT = "18.61.200.14"
+EC2_HOST_WITH_PORT = "18.61.200.14:8082"
+
+
+def public_domain(request):
+    """
+    The host:port that should appear in links emailed to users, correcting
+    for the missing X-Forwarded-Port on the EC2 deployment (see comment
+    above). Use this as `domain_override` in any PasswordResetForm.save()
+    call (or similar) instead of relying on the request/site domain.
+    """
+    host = request.get_host()
+    if EC2_HOST_WITHOUT_PORT in host and ":8082" not in host:
+        return EC2_HOST_WITH_PORT
+    return host
 
 
 def grant_login(employee):

@@ -35,6 +35,22 @@ class PasswordStepForm(forms.Form):
     )
 
 
+# class FirstPasswordSetupForm(PasswordResetForm):
+#     """
+#     Django's reset form skips users with no usable password (exactly the
+#     state of a freshly granted login). This subclass targets ONE specific
+#     user, the one matched in login step 1, and includes them.
+#     """
+
+#     def __init__(self, *args, target_user=None, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.target_user = target_user
+
+#     def get_users(self, email):
+#         user = self.target_user
+#         if user is not None and user.is_active and user.email:
+#             yield user
+
 class FirstPasswordSetupForm(PasswordResetForm):
     """
     Django's reset form skips users with no usable password (exactly the
@@ -50,3 +66,14 @@ class FirstPasswordSetupForm(PasswordResetForm):
         user = self.target_user
         if user is not None and user.is_active and user.email:
             yield user
+
+    def save(self, **kwargs):
+        request = kwargs.get("request")
+        if request:
+            host = request.get_host()
+            # If accessed via the EC2 IP without the port, force :8082
+            if "18.61.200.14" in host and ":8082" not in host:
+                kwargs["domain_override"] = "18.61.200.14:8082"
+            else:
+                kwargs["domain_override"] = host
+        return super().save(**kwargs)
