@@ -1,13 +1,17 @@
 from datetime import date
 from decimal import Decimal
 from django.test import TestCase
+from django.contrib.auth import get_user_model
 from organizations.models import Organization
 from .models import Employee, Attendance, Leave, SalaryRecord
 from .payroll_service import calculate_employee_payroll
 
+User = get_user_model()
+
 class PayrollTests(TestCase):
     def setUp(self):
-        self.org = Organization.objects.create(name="Apex Systems")
+        self.admin = User.objects.create_user(username="payroll_admin", password="password123")
+        self.org = Organization.objects.create(name="Apex Systems", created_by=self.admin)
         self.employee = Employee.objects.create(
             organization=self.org,
             first_name="Tony",

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Assign Projects · {{ organization.name }}{% endblock %}
+{% block content %}
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --radius-lg: 12px;
+    --radius-sm: 6px;
+  }
+  .page-header-compact {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .page-header-compact h1 {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+  }
+  .muted { color: var(--text-muted); font-size: 0.9rem; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    background: var(--surface-alt);
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+    color: var(--text-main);
+  }
+  tr:last-child td { border-bottom: none; }
+  select {
+    width: 100%;
+    max-width: 260px;
+    height: 36px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+    background: var(--surface);
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-main);
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+  .btn-primary:hover { background: var(--primary-hover); }
+</style>
+
+<div class="page-header-compact">
+  <div>
+    <h1>Assign Employees to Projects</h1>
+    <p class="muted">Set or change each employee's project. Leave as "— NA —" for unassigned.</p>
+  </div>
+  <div>
+    <a class="btn" href="{% url 'employee_list' org_id %}">Back to employees</a>
+  </div>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Designation</th>
+          <th>Project</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for employee in employees %}
+        <tr>
+          <td>
+            <strong>{{ employee.first_name }} {{ employee.last_name }}</strong><br>
+            <span class="muted">{{ employee.employee_id }}</span>
+          </td>
+          <td>{{ employee.designation|default:"—" }}</td>
+          <td>
+            <select name="project_{{ employee.id }}">
+              <option value="" {% if not employee.project_id %}selected{% endif %}>— NA —</option>
+              {% for project in projects %}
+                <option value="{{ project.id }}" {% if employee.project_id == project.id %}selected{% endif %}>{{ project.name }}</option>
+              {% endfor %}
+            </select>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="muted">No employees found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div style="margin-top: 20px;">
+    <button class="btn btn-primary" type="submit">Save Assignments</button>
+  </div>
+</form>
+{% endblock %}

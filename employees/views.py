@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from accounts.services import GrantLoginError, grant_login, public_domain
 from organizations.models import OrganizationMember
+from projects.models import Project
 from .bulk_import import batch, columns as import_columns, files as import_files, parse_upload
 from .bulk_import.commit import commit_rows
 from .forms import AttendanceForm, EmployeeForm, EmployeeImportUploadForm, EmployeeSelfForm, LeaveForm
@@ -57,6 +58,23 @@ def employee_dashboard(request, org_id):
     return render(request, "employees/employee_dashboard.html", context)
 
 
+# @login_required
+# def employee_list(request, org_id):
+#     membership = get_membership(request.user, org_id)
+#     if membership.role == "member":
+#         messages.error(request, "Access restricted to management.")
+#         return redirect("employee_dashboard", org_id=org_id)
+
+#     employees = permissions.visible_employees_queryset(membership).select_related("project")
+#     return render(request, "employees/list.html", {
+#         "organization": membership.organization, 
+#         "employees": employees, 
+#         "org_id": org_id, 
+#         "current_org": membership.organization,
+#         "can_view_salary_column": permissions.is_admin(membership),
+#         "can_import": permissions.is_admin(membership),
+#     })
+
 @login_required
 def employee_list(request, org_id):
     membership = get_membership(request.user, org_id)
@@ -64,14 +82,58 @@ def employee_list(request, org_id):
         messages.error(request, "Access restricted to management.")
         return redirect("employee_dashboard", org_id=org_id)
 
-    employees = permissions.visible_employees_queryset(membership).prefetch_related("projects")
+    organization = membership.organization
+    project_id_str = request.GET.get("project_id")
+
+    employees = permissions.visible_employees_queryset(membership).select_related("project")
+    if project_id_str:
+        employees = employees.filter(project_id=project_id_str)
+
+    projects = Project.objects.filter(organization=organization).order_by("name")
+
     return render(request, "employees/list.html", {
-        "organization": membership.organization, 
+        "organization": organization, 
         "employees": employees, 
         "org_id": org_id, 
-        "current_org": membership.organization,
+        "current_org": organization,
         "can_view_salary_column": permissions.is_admin(membership),
         "can_import": permissions.is_admin(membership),
+        "projects": projects,
+        "selected_project_id": project_id_str,
+    })
+
+@login_required
+def employee_assign_projects(request, org_id):
+    membership = get_membership(request.user, org_id)
+    if membership.role == "member":
+        messages.error(request, "Access restricted to management.")
+        return redirect("employee_dashboard", org_id=org_id)
+
+    organization = membership.organization
+    employees = permissions.visible_employees_queryset(membership).select_related("project").order_by("first_name")
+    projects = Project.objects.filter(organization=organization).order_by("name")
+
+    if request.method == "POST":
+        updated = 0
+        for employee in employees:
+            field_name = f"project_{employee.id}"
+            if field_name not in request.POST:
+                continue
+            value = request.POST.get(field_name)
+            new_project_id = int(value) if value else None
+            if new_project_id != employee.project_id:
+                employee.project_id = new_project_id
+                employee.save(update_fields=["project"])
+                updated += 1
+        messages.success(request, f"Updated project assignment for {updated} employee(s).")
+        return redirect("employee_assign_projects", org_id=org_id)
+
+    return render(request, "employees/assign_projects.html", {
+        "organization": organization,
+        "current_org": organization,
+        "org_id": org_id,
+        "employees": employees,
+        "projects": projects,
     })
 
 
@@ -613,6 +675,62 @@ def _import_membership(request, org_id):
     return membership
 
 
+# @login_required
+# def employee_import(request, org_id):
+#     membership = _import_membership(request, org_id)
+#     if membership is None:
+#         return redirect("home")
+#     organization = membership.organization
+#     columns = import_columns.build_columns(organization)
+#     context = {
+#         "organization": organization, "current_org": organization, "org_id": org_id,
+#         "stage": "upload", "columns": columns,
+#     }
+
+#     if request.method == "POST" and request.POST.get("action") == "confirm":
+#         payload = batch.load_batch(request, org_id, request.POST.get("token", ""))
+#         if payload is None:
+#             messages.error(
+#                 request, "This preview has expired or was replaced. Please upload the file again."
+#             )
+#             return redirect("employee_import", org_id=org_id)
+#         result = commit_rows(payload["rows"], organization, request.user)
+#         batch.clear_batch(request)
+#         context.update(stage="result", result=result)
+#         return render(request, "employees/import.html", context)
+
+#     if request.method == "POST":
+#         form = EmployeeImportUploadForm(request.POST, request.FILES)
+#         if form.is_valid():
+#             report = parse_upload(form.cleaned_data["file"], organization)
+#             if not report.ok:
+#                 batch.clear_batch(request)
+#                 context["file_errors"] = report.file_errors
+#             else:
+#                 payload = batch.report_to_payload(report)
+#                 token = batch.store_batch(request, org_id, payload)
+#                 counts = report.counts
+#                 context.update(
+#                     stage="preview",
+#                     token=token,
+#                     notices=report.notices,
+#                     column_names=[c["name"] for c in payload["columns"]],
+#                     rows=[
+#                         {
+#                             "n": r["n"], "status": r["status"], "notes": r["notes"],
+#                             "cells": [r["values"].get(c["key"], "") for c in payload["columns"]],
+#                         }
+#                         for r in payload["rows"]
+#                     ],
+#                     counts=counts,
+#                     importable=counts["READY"] + counts["WARNING"],
+#                     problems=counts["ERROR"] + counts["SKIP"],
+#                 )
+#     else:
+#         form = EmployeeImportUploadForm()
+#     context["form"] = form
+#     return render(request, "employees/import.html", context)
+
 @login_required
 def employee_import(request, org_id):
     membership = _import_membership(request, org_id)
@@ -620,9 +738,10 @@ def employee_import(request, org_id):
         return redirect("home")
     organization = membership.organization
     columns = import_columns.build_columns(organization)
+    projects = Project.objects.filter(organization=organization).order_by("name")
     context = {
         "organization": organization, "current_org": organization, "org_id": org_id,
-        "stage": "upload", "columns": columns,
+        "stage": "upload", "columns": columns, "projects": projects,
     }
 
     if request.method == "POST" and request.POST.get("action") == "confirm":
@@ -632,7 +751,12 @@ def employee_import(request, org_id):
                 request, "This preview has expired or was replaced. Please upload the file again."
             )
             return redirect("employee_import", org_id=org_id)
-        result = commit_rows(payload["rows"], organization, request.user)
+        project_id_str = request.POST.get("project_id")
+        selected_project = projects.filter(id=project_id_str).first() if project_id_str else None
+        result = commit_rows(
+            payload["rows"], organization, request.user,
+            project_id=selected_project.id if selected_project else None,
+        )
         batch.clear_batch(request)
         context.update(stage="result", result=result)
         return render(request, "employees/import.html", context)
@@ -648,6 +772,8 @@ def employee_import(request, org_id):
                 payload = batch.report_to_payload(report)
                 token = batch.store_batch(request, org_id, payload)
                 counts = report.counts
+                project_id_str = request.POST.get("project_id")
+                selected_project = projects.filter(id=project_id_str).first() if project_id_str else None
                 context.update(
                     stage="preview",
                     token=token,
@@ -663,6 +789,7 @@ def employee_import(request, org_id):
                     counts=counts,
                     importable=counts["READY"] + counts["WARNING"],
                     problems=counts["ERROR"] + counts["SKIP"],
+                    selected_project=selected_project,
                 )
     else:
         form = EmployeeImportUploadForm()
@@ -710,6 +837,7 @@ def payroll(request, org_id):
     start_str = request.GET.get("start_date") or request.POST.get("start_date")
     end_str = request.GET.get("end_date") or request.POST.get("end_date")
     month_str = request.GET.get("month") or request.POST.get("month")
+    project_id_str = request.GET.get("project_id") or request.POST.get("project_id")
 
     start_date = None
     end_date = None
@@ -743,6 +871,12 @@ def payroll(request, org_id):
     employees = permissions.scoped_report_queryset(membership).filter(
         is_active=True
     ).order_by("employee_id")
+
+    if project_id_str:
+        employees = employees.filter(project_id=project_id_str)
+
+    projects = Project.objects.filter(organization=organization).order_by("name")
+    selected_project = projects.filter(id=project_id_str).first() if project_id_str else None
 
     selected_emp_id = request.GET.get("employee_id")
     selected_employee = employees.filter(id=selected_emp_id).first() if selected_emp_id else None
@@ -781,6 +915,8 @@ def payroll(request, org_id):
             redirect_url = f"{request.path}?start_date={start_date.isoformat()}&end_date={end_date.isoformat()}&month={selected_month_str}"
             if selected_emp_id:
                 redirect_url += f"&employee_id={selected_emp_id}"
+            if project_id_str:
+                redirect_url += f"&project_id={project_id_str}"
             return redirect(redirect_url)
 
     saved_records = {
@@ -799,7 +935,7 @@ def payroll(request, org_id):
         calc["confirmed"] = record.confirmed if record else False
         payroll_data.append(calc)
 
-    single_calc = None
+        single_calc = None
     if selected_employee:
         single_calc = next((item for item in payroll_data if item["employee"].id == selected_employee.id), None)
 
@@ -817,6 +953,8 @@ def payroll(request, org_id):
         "selected_employee": selected_employee,
         "payroll_data": payroll_data,
         "single_calc": single_calc,
+        "projects": projects,
+        "selected_project_id": project_id_str,
     }
     return render(request, "employees/payroll.html", context)
 
@@ -1055,7 +1193,13 @@ def attendance_exceptions(request, org_id):
     else:
         target_date = timezone.localdate()
 
+    project_id_str = request.GET.get("project_id")
+
     employees = permissions.scoped_report_queryset(membership).filter(is_active=True).order_by("employee_id")
+    if project_id_str:
+        employees = employees.filter(project_id=project_id_str)
+
+    projects = Project.objects.filter(organization=membership.organization).order_by("name")
 
     records_by_emp = {
         att.employee_id: att
@@ -1102,6 +1246,8 @@ def attendance_exceptions(request, org_id):
         "target_date": target_date,
         "roster": roster,
         "can_edit": permissions.can_manage_attendance(membership, None),
+        "projects": projects,
+        "selected_project_id": project_id_str,
     }
     return render(request, "employees/attendance_exceptions.html", context)
 
@@ -1156,7 +1302,13 @@ def leave_apply_management(request, org_id):
         messages.error(request, "Permission denied.")
         return redirect("employee_dashboard", org_id=org_id)
 
+    project_id_str = request.GET.get("project_id")
+
     employees = permissions.scoped_report_queryset(membership).filter(is_active=True).order_by("first_name")
+    if project_id_str:
+        employees = employees.filter(project_id=project_id_str)
+
+    projects = Project.objects.filter(organization=membership.organization).order_by("name")
 
     if request.method == "POST":
         emp_id = request.POST.get("employee_id")
@@ -1193,5 +1345,7 @@ def leave_apply_management(request, org_id):
         "organization": membership.organization,
         "org_id": org_id,
         "employees": employees,
+        "projects": projects,
+        "selected_project_id": project_id_str,
     }
     return render(request, "employees/leave_apply_management.html", context)

@@ -1,0 +1,253 @@
+Creating test database for alias 'default'...
+..............Bulk import: could not open workbook
+Traceback (most recent call last):
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/employees/bulk_import/engine.py", line 111, in read_workbook_rows
+    workbook = load_workbook(file_obj, read_only=True, data_only=True)
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/openpyxl/reader/excel.py", line 346, in load_workbook
+    reader = ExcelReader(filename, read_only, keep_vba,
+                         data_only, keep_links, rich_text)
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/openpyxl/reader/excel.py", line 123, in __init__
+    self.archive = _validate_archive(fn)
+                   ~~~~~~~~~~~~~~~~~^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/openpyxl/reader/excel.py", line 95, in _validate_archive
+    archive = ZipFile(filename, 'r')
+  File "/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/zipfile/__init__.py", line 1471, in __init__
+    self._RealGetContents()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/zipfile/__init__.py", line 1538, in _RealGetContents
+    raise BadZipFile("File is not a zip file")
+zipfile.BadZipFile: File is not a zip file
+..........................................FE.EEF.....................................
+======================================================================
+ERROR: test_employee_form_saves_financial_fields (employees.test_employee_crud.EmployeeCRUDTests.test_employee_form_saves_financial_fields)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/employees/test_employee_crud.py", line 57, in test_employee_form_saves_financial_fields
+    emp = form.save()
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/employees/forms.py", line 294, in save
+    employee.save()
+    ~~~~~~~~~~~~~^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/employees/models.py", line 258, in save
+    org_prefix = re.sub(r"[^a-zA-Z]", "", self.organization.name)[:3].lower()
+                                          ^^^^^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/fields/related_descriptors.py", line 271, in __get__
+    raise self.RelatedObjectDoesNotExist(
+        "%s has no %s." % (self.field.model.__name__, self.field.name)
+    )
+employees.models.Employee.organization.RelatedObjectDoesNotExist: Employee has no organization.. Did you mean: 'organization_id'?
+
+======================================================================
+ERROR: test_leave_approval_workflow (employees.test_leave.LeaveWorkflowTests.test_leave_approval_workflow)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/backends/sqlite3/base.py", line 360, in execute
+    return super().execute(query, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+sqlite3.IntegrityError: UNIQUE constraint failed: employees_employee.organization_id, employees_employee.user_id
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/employees/test_leave.py", line 19, in setUp
+    self.employee = Employee.objects.create(
+                    ~~~~~~~~~~~~~~~~~~~~~~~^
+        organization=self.org,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        last_name="Banner",
+        ^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/query.py", line 665, in create
+    obj.save(force_insert=True, using=self.db)
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/employees/models.py", line 275, in save
+    super().save(*args, **kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/base.py", line 902, in save
+    self.save_base(
+    ~~~~~~~~~~~~~~^
+        using=using,
+        ^^^^^^^^^^^^
+    ...<2 lines>...
+        update_fields=update_fields,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/base.py", line 1008, in save_base
+    updated = self._save_table(
+        raw,
+    ...<4 lines>...
+        update_fields,
+    )
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/base.py", line 1169, in _save_table
+    results = self._do_insert(
+        cls._base_manager, using, fields, returning_fields, raw
+    )
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/base.py", line 1210, in _do_insert
+    return manager._insert(
+           ~~~~~~~~~~~~~~~^
+        [self],
+        ^^^^^^^
+    ...<3 lines>...
+        raw=raw,
+        ^^^^^^^^
+    )
+    ^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/query.py", line 1873, in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/sql/compiler.py", line 1882, in execute_sql
+    cursor.execute(sql, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sql, params, many=False, executor=self._execute
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/backends/utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/backends/sqlite3/base.py", line 360, in execute
+    return super().execute(query, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+django.db.utils.IntegrityError: UNIQUE constraint failed: employees_employee.organization_id, employees_employee.user_id
+
+======================================================================
+ERROR: test_leave_creation_defaults_to_pending (employees.test_leave.LeaveWorkflowTests.test_leave_creation_defaults_to_pending)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/backends/sqlite3/base.py", line 360, in execute
+    return super().execute(query, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+sqlite3.IntegrityError: UNIQUE constraint failed: employees_employee.organization_id, employees_employee.user_id
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/employees/test_leave.py", line 19, in setUp
+    self.employee = Employee.objects.create(
+                    ~~~~~~~~~~~~~~~~~~~~~~~^
+        organization=self.org,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        last_name="Banner",
+        ^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/query.py", line 665, in create
+    obj.save(force_insert=True, using=self.db)
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/employees/models.py", line 275, in save
+    super().save(*args, **kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/base.py", line 902, in save
+    self.save_base(
+    ~~~~~~~~~~~~~~^
+        using=using,
+        ^^^^^^^^^^^^
+    ...<2 lines>...
+        update_fields=update_fields,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/base.py", line 1008, in save_base
+    updated = self._save_table(
+        raw,
+    ...<4 lines>...
+        update_fields,
+    )
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/base.py", line 1169, in _save_table
+    results = self._do_insert(
+        cls._base_manager, using, fields, returning_fields, raw
+    )
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/base.py", line 1210, in _do_insert
+    return manager._insert(
+           ~~~~~~~~~~~~~~~^
+        [self],
+        ^^^^^^^
+    ...<3 lines>...
+        raw=raw,
+        ^^^^^^^^
+    )
+    ^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/query.py", line 1873, in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/models/sql/compiler.py", line 1882, in execute_sql
+    cursor.execute(sql, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sql, params, many=False, executor=self._execute
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/backends/utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/venv/lib/python3.14/site-packages/django/db/backends/sqlite3/base.py", line 360, in execute
+    return super().execute(query, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+django.db.utils.IntegrityError: UNIQUE constraint failed: employees_employee.organization_id, employees_employee.user_id
+
+======================================================================
+FAIL: test_auto_generated_employee_id (employees.test_employee_crud.EmployeeCRUDTests.test_auto_generated_employee_id)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/employees/test_employee_crud.py", line 28, in test_auto_generated_employee_id
+    self.assertTrue(emp1.employee_id.endswith("0001"))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_custom_cross_month_cycle_proration (employees.test_payroll.PayrollTests.test_custom_cross_month_cycle_proration)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/prabalsingh/Documents/django_org_project_app_v3/employees/test_payroll.py", line 57, in test_custom_cross_month_cycle_proration
+    self.assertEqual(calc["present_days"], Decimal("10.0"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Decimal('27.0') != Decimal('10.0')
+
+----------------------------------------------------------------------
+Ran 99 tests in 21.409s
+
+FAILED (failures=2, errors=3)
+Destroying test database for alias 'default'...
+Found 99 test(s).
+System check identified no issues (0 silenced).

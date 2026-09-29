@@ -5,14 +5,21 @@ class Project(models.Model):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="projects"
     )
+    # name = models.CharField(max_length=150)
+    # description = models.TextField(blank=True)
+    # employees = models.ManyToManyField(
+    #     "employees.Employee",
+    #     blank=True,
+    #     related_name="projects",
+    # )
+    # created_at = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True)
-    employees = models.ManyToManyField(
-        "employees.Employee",
-        blank=True,
-        related_name="projects",
-    )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # NOTE: team membership is now defined from the Employee side via
+    # Employee.project (a one-employee-one-project FK). Use
+    # `project.team_members` to get the employees assigned to this project.
 
     def __str__(self):
         return self.name

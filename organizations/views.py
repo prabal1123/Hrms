@@ -5,6 +5,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import OrganizationForm
 from .models import Organization, OrganizationMember
+from .dashboard_stats import build_dashboard
+from employees import permissions
 
 @login_required
 def create_organization(request):
@@ -46,10 +48,22 @@ def organization_detail(request, pk):
         messages.error(request, "Access restricted to management.")
         return redirect("employee_dashboard", org_id=pk)
 
+    # org = membership.organization
+    # projects = org.projects.all().order_by("-created_at")
+    # return render(
+    #     request,
+    #     "organizations/detail.html",
+    #     {"organization": org, "membership": membership, "projects": projects},
+    # )
     org = membership.organization
     projects = org.projects.all().order_by("-created_at")
     return render(
         request,
         "organizations/detail.html",
-        {"organization": org, "membership": membership, "projects": projects},
+        {
+            "organization": org,
+            "membership": membership,
+            "projects": projects,
+            **build_dashboard(org, show_salary=permissions.is_admin(membership)),
+        },
     )

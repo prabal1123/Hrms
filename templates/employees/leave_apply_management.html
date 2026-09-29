@@ -121,6 +121,21 @@
   }
 </style>
 
+<div class="mgmt-leave-card" style="margin-bottom: 12px; padding: 14px 22px;">
+    <form method="get" style="display: flex; align-items: center; gap: 10px;">
+        <label for="project_id" style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Filter Employee List by Project:</label>
+        <select id="project_id" name="project_id" style="height: 36px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm);" onchange="this.form.submit()">
+            <option value="">All Projects</option>
+            {% for project in projects %}
+                <option value="{{ project.id }}" {% if selected_project_id == project.id|stringformat:"s" %}selected{% endif %}>
+                    {{ project.name }}
+                </option>
+            {% endfor %}
+        </select>
+        <noscript><button type="submit" class="btn">Go</button></noscript>
+    </form>
+</div>
+
 <div class="mgmt-leave-card">
     <div class="card-head">
         <a href="{% url 'attendance_exceptions' org_id %}" style="text-decoration: none; color: var(--primary); font-size: 0.82rem; font-weight: 600;">&larr; Back to Exceptions</a>

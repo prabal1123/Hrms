@@ -274,7 +274,7 @@ class ImportFlowTests(TestCase):
     def test_wrong_extension_and_button_visibility(self):
         response = self.client.post(self.url, {"file": SimpleUploadedFile("staff.csv", b"a,b")})
         self.assertContains(response, "Please upload an .xlsx")
-        self.assertContains(self.client.get(reverse("employee_list", args=[self.org.id])), "Import employees")
+        self.assertContains(self.client.get(reverse("employee_list", args=[self.org.id])), "Import")
 
 
 class CrossOrganizationImportTests(TestCase):

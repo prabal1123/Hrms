@@ -328,6 +328,7 @@
         {% if can_import %}
             <a class="btn" href="{% url 'employee_import' org.id %}">Import</a>
         {% endif %}
+        <a class="btn" href="{% url 'employee_assign_projects' org.id %}">Assign Projects</a>
         <a class="btn btn-primary" href="{% url 'employee_create' org.id %}">+ Add Employee</a>
     </div>
 </div>
@@ -353,6 +354,16 @@
                     <option value="inactive">Inactive</option>
                 </select>
             </div>
+            <form method="get" class="filter-box">
+                <select name="project_id" onchange="this.form.submit()">
+                    <option value="">All Projects</option>
+                    {% for project in projects %}
+                        <option value="{{ project.id }}" {% if selected_project_id == project.id|stringformat:"s" %}selected{% endif %}>
+                            {{ project.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
         </div>
 
         <div class="table-container">
@@ -377,12 +388,12 @@
                     <tr class="employee-row" data-status="{% if employee.is_active %}active{% else %}inactive{% endif %}">
                         <td><span class="badge badge-id">{{ employee.employee_id }}</span></td>
                         <td><strong>{{ employee.first_name }} {{ employee.last_name }}</strong></td>
-                        <td>
-                            {% for p in employee.projects.all %}
-                                <span class="badge badge-project">{{ p.name }}</span>
-                            {% empty %}
+                                                <td>
+                            {% if employee.project %}
+                                <span class="badge badge-project">{{ employee.project.name }}</span>
+                            {% else %}
                                 <span style="color: var(--text-muted); font-size: 0.85rem; font-style: italic;">Not assigned</span>
-                            {% endfor %}
+                            {% endif %}
                         </td>
                         <td style="color: var(--text-muted);">{{ employee.email|default:"—" }}</td>
                         

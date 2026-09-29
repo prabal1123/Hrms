@@ -85,9 +85,18 @@
 </div>
 
 <div class="toolbar-box">
-    <form method="get" style="display: flex; align-items: center; gap: 10px;">
+    <form method="get" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
         <label for="date" style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Target Date:</label>
         <input type="date" id="date" name="date" value="{{ target_date|date:'Y-m-d' }}" style="height: 36px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px;" onchange="this.form.submit()">
+        <label for="project_id" style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Project:</label>
+        <select id="project_id" name="project_id" style="height: 36px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px;" onchange="this.form.submit()">
+            <option value="">All Projects</option>
+            {% for project in projects %}
+                <option value="{{ project.id }}" {% if selected_project_id == project.id|stringformat:"s" %}selected{% endif %}>
+                    {{ project.name }}
+                </option>
+            {% endfor %}
+        </select>
         <noscript><button type="submit" class="btn">Go</button></noscript>
     </form>
     <div>

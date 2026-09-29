@@ -3,6 +3,7 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from organizations.models import Organization, OrganizationMember
 from employees.models import Employee
+from organizations.models import OrganizationMember
 from projects.models import Project, Action
 
 User = get_user_model()
@@ -26,7 +27,8 @@ class ProjectTests(TestCase):
             name="Platform Alpha",
             description="Core system"
         )
-        self.project.employees.add(self.employee)
+        self.employee.project = self.project
+        self.employee.save()
 
     def test_project_dashboard_view(self):
         response = self.client.get(reverse("project_dashboard", args=[self.project.id]))
@@ -45,3 +47,56 @@ class ProjectTests(TestCase):
         )
         self.assertEqual(action.project, self.project)
         self.assertEqual(action.status, "in_progress")
+
+class OrganizationProjectsScopingTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username="orgowner2", password="password123")
+        self.org = Organization.objects.create(name="Scope Org", created_by=self.owner)
+        OrganizationMember.objects.create(user=self.owner, organization=self.org, role="owner")
+
+        self.member_user = User.objects.create_user(username="scopedmember", password="password123")
+        self.membership = OrganizationMember.objects.create(
+            user=self.member_user, organization=self.org, role="member"
+        )
+
+        self.project_mine = Project.objects.create(organization=self.org, name="My Project")
+        self.project_other = Project.objects.create(organization=self.org, name="Other Project")
+
+        # Creating the OrganizationMember above may have already auto-created an
+        # Employee for this user via a signal; reuse it instead of creating a
+        # duplicate, which would hit the (organization, user) unique constraint.
+        self.member_employee, _ = Employee.objects.get_or_create(
+            organization=self.org,
+            user=self.member_user,
+            defaults={
+                "employee_id": "SCOPED01",
+                "first_name": "Scoped",
+                "last_name": "User",
+            },
+        )
+        self.member_employee.project = self.project_mine
+        self.member_employee.save()
+
+    def test_owner_sees_all_projects(self):
+        self.client.login(username="orgowner2", password="password123")
+        response = self.client.get(reverse("organization_projects", args=[self.org.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "My Project")
+        self.assertContains(response, "Other Project")
+
+    def test_member_sees_only_their_own_project(self):
+        self.client.login(username="scopedmember", password="password123")
+        response = self.client.get(reverse("organization_projects", args=[self.org.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "My Project")
+        self.assertNotContains(response, "Other Project")
+
+    def test_member_with_no_project_sees_none(self):
+        self.member_employee.project = None
+        self.member_employee.save()
+        self.client.login(username="scopedmember", password="password123")
+        response = self.client.get(reverse("organization_projects", args=[self.org.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "No projects assigned")
+        self.assertNotContains(response, "Other Project")
+        self.assertNotContains(response, "Platform Alpha")

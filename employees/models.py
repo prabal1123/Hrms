@@ -196,12 +196,32 @@ class Employee(models.Model):
     is_active = models.BooleanField(default=True)
     payroll_confirmed = models.BooleanField(default=False)
 
+    # supervisor = models.ForeignKey(
+    #     "self",
+    #     on_delete=models.SET_NULL,
+    #     null=True,
+    #     blank=True,
+    #     related_name="direct_reports",
+    # )
+
+    # designation = models.CharField(max_length=100, blank=True)
     supervisor = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="direct_reports",
+    )
+
+    # An employee belongs to at most one project. NULL means "NA / Unassigned"
+    # (the default for newly onboarded employees until someone assigns them).
+    project = models.ForeignKey(
+        "projects.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="team_members",
+        help_text="Project this employee is assigned to. Leave blank for NA.",
     )
 
     designation = models.CharField(max_length=100, blank=True)

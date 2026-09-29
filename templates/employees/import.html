@@ -30,6 +30,18 @@
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {{ form.as_p }}
+        {% if projects %}
+        <div style="margin-bottom:14px;">
+            <label for="project_id" style="display:block; font-weight:600; margin-bottom:4px;">Assign to project (optional)</label>
+            <select id="project_id" name="project_id">
+                <option value="">No project (unassigned)</option>
+                {% for project in projects %}
+                    <option value="{{ project.id }}">{{ project.name }}</option>
+                {% endfor %}
+            </select>
+            <p class="muted small" style="margin-top:4px;">Everyone in this file will be assigned to the selected project.</p>
+        </div>
+        {% endif %}
         <button type="submit" class="btn btn-primary">Preview import</button>
     </form>
 </div>
@@ -97,8 +109,12 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="confirm">
             <input type="hidden" name="token" value="{{ token }}">
+            <input type="hidden" name="project_id" value="{{ selected_project.id|default:'' }}">
             <button type="submit" class="btn btn-primary">Import {{ importable }} employee{{ importable|pluralize }}</button>
         </form>
+        {% if selected_project %}
+        <p class="muted small">All imported employees will be assigned to <strong>{{ selected_project.name }}</strong>.</p>
+        {% endif %}
         {% endif %}
         {% if problems %}
         <a class="btn" href="{% url 'employee_import_problems' org_id %}?token={{ token }}">Download the {{ problems }} row{{ problems|pluralize }} with problems</a>

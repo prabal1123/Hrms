@@ -11,7 +11,7 @@ User = get_user_model()
 class AttendanceTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="test_emp", password="password123")
-        self.org = Organization.objects.create(name="TechCorp")
+        self.org = Organization.objects.create(name="TechCorp", created_by=self.user)
         self.employee = Employee.objects.create(
             organization=self.org,
             user=self.user,

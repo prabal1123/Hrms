@@ -537,22 +537,20 @@
                 </div>
             </div>
 
-            {% if employee.projects.all %}
+            {% if employee.project %}
                 <div class="data-grid">
-                    {% for project in employee.projects.all %}
-                        <a href="{% url 'project_dashboard' project.id %}" class="project-item">
-                            <div class="project-icon">{{ project.name|first|upper }}</div>
-                            <div>
-                                <strong>{{ project.name }}</strong>
-                                <span>{{ project.organization.name }}</span>
-                            </div>
-                        </a>
-                    {% endfor %}
+                    <a href="{% url 'project_dashboard' employee.project.id %}" class="project-item">
+                        <div class="project-icon">{{ employee.project.name|first|upper }}</div>
+                        <div>
+                            <strong>{{ employee.project.name }}</strong>
+                            <span>{{ employee.project.organization.name }}</span>
+                        </div>
+                    </a>
                 </div>
             {% else %}
                 <div class="empty-state">
-                    <h3>No Active Projects</h3>
-                    <p>This employee hasn't been assigned to any projects yet.</p>
+                    <h3>No Active Project</h3>
+                    <p>This employee hasn't been assigned to a project yet.</p>
                 </div>
             {% endif %}
         </section>

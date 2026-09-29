@@ -11,258 +11,130 @@
     --text-main: #1f2937;
     --text-muted: #6b7280;
     --border-color: #e5e7eb;
+    --good: #059669;
+    --warn: #d97706;
+    --bad: #dc2626;
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
     --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -4px rgba(0,0,0,0.05);
-    --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.08), 0 10px 10px -5px rgba(0,0,0,0.03);
     --radius: 12px;
   }
 
-  /* Keyframe Animations */
   @keyframes fadeSlideUp {
-    from { opacity: 0; transform: translateY(16px); }
+    from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+  .org-dashboard { display: flex; flex-direction: column; gap: 16px; }
+  .org-dashboard > * { animation: fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-  /* Staggered Entrance Animation */
-  .org-hero, .section-head, .module-grid, .project-grid, .empty-state { 
-    animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; 
-  }
-  .org-hero { animation-delay: 0.05s; }
-  .section-head:nth-of-type(1) { animation-delay: 0.15s; }
-  .module-grid { animation-delay: 0.2s; }
-  .section-head:nth-of-type(2) { animation-delay: 0.25s; }
-  .project-grid, .empty-state { animation-delay: 0.3s; }
-
-  /* Dashboard Container Base */
-  .org-dashboard {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-  }
-
-  /* Organization Hero */
+  /* Header */
   .org-hero {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 20px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius);
-    padding: 28px 24px;
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow 0.25s ease;
-  }
-  .org-hero:hover {
-    box-shadow: var(--shadow-md);
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 12px;
+    background: var(--bg-surface); border: 1px solid var(--border-color);
+    border-radius: var(--radius); padding: 16px 20px; box-shadow: var(--shadow-sm);
   }
   .org-hero .eyebrow {
-    text-transform: uppercase;
-    font-size: 11px;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    font-weight: 600;
+    text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em;
+    color: var(--text-muted); font-weight: 600;
   }
-  .org-hero h1 {
-    font-size: 26px;
-    font-weight: 700;
-    margin: 4px 0 6px;
-    color: var(--text-main);
+  .org-hero h1 { font-size: 22px; font-weight: 700; margin: 2px 0 0; color: var(--text-main); }
+  .chip {
+    display: inline-block; background: #eef2ff; color: var(--primary-color);
+    padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600;
+    margin-left: 8px; vertical-align: middle;
   }
-  .org-hero p.muted {
-    color: var(--text-muted);
-    font-size: 14px;
-    margin: 0;
-  }
-  .hero-actions {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
+  .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-  /* Section Head */
-  .section-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 8px;
+  /* KPI strip */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .kpi {
+    background: var(--bg-surface); border: 1px solid var(--border-color);
+    border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow-sm);
+    text-decoration: none; display: block; transition: all 0.2s ease;
   }
-  .section-head h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--text-main);
-    margin: 0 0 2px;
-  }
-  .section-head p.muted {
-    font-size: 13px;
-    color: var(--text-muted);
-    margin: 0;
-  }
+  a.kpi:hover { border-color: var(--primary-color); box-shadow: var(--shadow-md); }
+  .kpi .label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+  .kpi .value { font-size: 26px; font-weight: 700; color: var(--text-main); line-height: 1.2; margin-top: 2px; }
+  .kpi .value small { font-size: 14px; font-weight: 500; color: var(--text-muted); }
 
-  /* Workspace Module Grid */
-  .module-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 16px;
+  /* Pending strip */
+  .pending-strip {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+    background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius);
+    padding: 10px 16px;
   }
-  .module-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius);
-    padding: 20px;
-    text-decoration: none;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    box-shadow: var(--shadow-sm);
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  .pending-label { font-size: 13px; font-weight: 600; color: #92400e; margin-right: 4px; }
+  .pending-pill {
+    font-size: 13px; font-weight: 500; text-decoration: none; color: #92400e;
+    background: #ffffff; border: 1px solid #fde68a; padding: 4px 12px; border-radius: 9999px;
   }
-  .module-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
-    border-color: var(--primary-color);
-    background: #ffffff;
-  }
-  .module-icon {
-    font-size: 24px;
-    margin-bottom: 4px;
-  }
-  .module-card strong {
-    font-size: 16px;
-    color: var(--text-main);
-  }
-  .module-card span {
-    font-size: 13px;
-    color: var(--text-muted);
-  }
+  .pending-pill:hover { border-color: #d97706; }
+  .pending-pill.red { color: #991b1b; border-color: #fecaca; }
 
-  /* Projects Grid */
-  .project-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 20px;
-  }
+  /* Section head */
+  .section-head h2 { font-size: 17px; font-weight: 600; color: var(--text-main); margin: 8px 0 0; }
+
+  /* Project cards */
+  .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
   .project-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius);
-    padding: 24px;
-    text-decoration: none;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    box-shadow: var(--shadow-sm);
+    background: var(--bg-surface); border: 1px solid var(--border-color);
+    border-radius: var(--radius); padding: 18px 20px; text-decoration: none;
+    display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow-sm);
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    position: relative;
-    overflow: hidden;
   }
-  .project-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
-    border-color: var(--primary-color);
+  .project-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--primary-color); }
+  .project-card h3 { font-size: 17px; font-weight: 600; color: var(--text-main); margin: 0; }
+  .project-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .avatars { display: flex; }
+  .avatar {
+    width: 26px; height: 26px; border-radius: 50%; background: #e0e7ff; color: var(--primary-color);
+    font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    border: 2px solid #fff; margin-left: -6px;
   }
-  .project-top {
-    display: flex;
-    justify-content: flex-start;
-  }
-  .project-badge {
-    background: #e0e7ff;
-    color: var(--primary-color);
-    padding: 4px 10px;
-    border-radius: 9999px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  .project-card h3 {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-main);
-    margin: 0;
-  }
-  .project-card p {
-    font-size: 13px;
-    color: var(--text-muted);
-    margin: 0;
-    line-height: 1.5;
-    flex-grow: 1;
-  }
-  .project-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-top: 1px solid var(--border-color);
-    padding-top: 12px;
-    margin-top: 4px;
-    font-size: 13px;
-    color: var(--text-muted);
-    font-weight: 500;
-  }
+  .avatar:first-child { margin-left: 0; }
+  .avatar.more { background: #f3f4f6; color: var(--text-muted); }
 
-  /* Empty State Styling */
+  .today-line { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--text-main); }
+  .today-line .away { color: var(--text-muted); font-size: 12px; text-align: right; }
+
+  .metric { display: flex; flex-direction: column; gap: 5px; }
+  .metric-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
+  .metric-row strong { color: var(--text-main); font-weight: 600; }
+  .metric-row strong.good { color: var(--good); }
+  .metric-row strong.warn { color: var(--warn); }
+  .metric-row strong.bad { color: var(--bad); }
+  .cost { color: var(--text-main); font-weight: 600; }
+  .meter { height: 6px; background: #eef0f4; border-radius: 9999px; overflow: hidden; }
+  .meter > span { display: block; height: 100%; background: var(--primary-color); border-radius: 9999px; }
+  .meter > span.good { background: var(--good); }
+  .meter > span.warn { background: var(--warn); }
+  .meter > span.bad { background: var(--bad); }
+
+  .project-footer {
+    display: flex; justify-content: space-between; border-top: 1px solid var(--border-color);
+    padding-top: 10px; font-size: 12px; color: var(--text-muted); font-weight: 500;
+  }
+  .project-footer .overdue { color: var(--bad); font-weight: 600; }
+
+  /* Empty state */
   .empty-state {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius);
-    padding: 48px 24px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    box-shadow: var(--shadow-sm);
+    background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius);
+    padding: 40px 24px; text-align: center; display: flex; flex-direction: column;
+    align-items: center; gap: 10px; box-shadow: var(--shadow-sm);
   }
-  .empty-icon {
-    font-size: 36px;
-    margin-bottom: 4px;
-  }
-  .empty-state h3 {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-main);
-    margin: 0;
-  }
-  .empty-state p {
-    font-size: 14px;
-    color: var(--text-muted);
-    max-width: 320px;
-    margin: 0 0 12px 0;
-  }
+  .empty-state h3 { font-size: 18px; font-weight: 600; color: var(--text-main); margin: 0; }
+  .empty-state p { font-size: 14px; color: var(--text-muted); max-width: 320px; margin: 0 0 8px; }
 
   /* Buttons */
   .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 10px 16px;
-    border-radius: 8px;
-    font-weight: 500;
-    font-size: 14px;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    text-decoration: none;
-    cursor: pointer;
-    border: 1px solid var(--border-color);
-    background: #ffffff;
-    color: var(--text-main);
+    display: inline-flex; align-items: center; justify-content: center; padding: 9px 16px;
+    border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.2s ease;
+    text-decoration: none; cursor: pointer; border: 1px solid var(--border-color);
+    background: #ffffff; color: var(--text-main);
   }
-  .btn:hover { 
-    transform: translateY(-2px); 
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); 
-    border-color: #d1d5db;
-  }
-  .btn-primary {
-    background: var(--primary-color);
-    color: #ffffff;
-    border-color: var(--primary-color);
-  }
-  .btn-primary:hover {
-    background: var(--primary-hover);
-    border-color: var(--primary-hover);
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
-  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #d1d5db; }
+  .btn-primary { background: var(--primary-color); color: #ffffff; border-color: var(--primary-color); }
+  .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); box-shadow: 0 4px 12px rgba(79,70,229,0.2); }
 </style>
 
 <div class="org-dashboard">
@@ -270,133 +142,118 @@
     <div class="org-hero">
         <div>
             <div class="eyebrow">Organization Workspace</div>
-            <h1>{{ organization.name }}</h1>
-            <p class="muted">
-                Manage employees, projects, attendance, leave and payroll from one central dashboard.
-            </p>
+            <h1>{{ organization.name }}<span class="chip">{{ month_label }}</span></h1>
         </div>
-
         <div class="hero-actions">
-            <a class="btn" href="{% url 'employee_create' organization.id %}">
-                + Employee
-            </a>
-
-            <a class="btn btn-primary" href="{% url 'project_create' organization.id %}">
-                + Project
-            </a>
+            <a class="btn" href="{% url 'employee_create' organization.id %}">+ Employee</a>
+            <a class="btn btn-primary" href="{% url 'project_create' organization.id %}">+ Project</a>
         </div>
     </div>
+
+    <div class="kpi-grid">
+        <a class="kpi" href="{% url 'employee_list' organization.id %}">
+            <div class="label">Active employees</div>
+            <div class="value">{{ kpi.active }}</div>
+        </a>
+        <a class="kpi" href="{% url 'attendance_list' organization.id %}">
+            <div class="label">Present today</div>
+            <div class="value">{{ kpi.present_today }} <small>/ {{ kpi.active }}</small></div>
+        </a>
+        <a class="kpi" href="{% url 'leave_list' organization.id %}">
+            <div class="label">On leave today</div>
+            <div class="value">{{ kpi.on_leave_today }}</div>
+        </a>
+        <a class="kpi" href="{% url 'payroll' organization.id %}">
+            <div class="label">Payroll confirmed</div>
+            <div class="value">{{ kpi.payroll_confirmed }} <small>/ {{ kpi.active }}</small></div>
+        </a>
+        <div class="kpi">
+            <div class="label">Pending actions</div>
+            <div class="value">{{ kpi.pending_total }}</div>
+        </div>
+    </div>
+
+    {% if kpi.pending_total %}
+    <div class="pending-strip">
+        <span class="pending-label">Needs attention</span>
+        {% if pending_leaves %}
+        <a class="pending-pill" href="{% url 'leave_list' organization.id %}">{{ pending_leaves }} leave request{{ pending_leaves|pluralize }}</a>
+        {% endif %}
+        {% if payroll_pending %}
+        <a class="pending-pill" href="{% url 'payroll' organization.id %}">{{ payroll_pending }} payroll unconfirmed</a>
+        {% endif %}
+        {% if overdue_actions %}
+        <a class="pending-pill red" href="{% url 'organization_projects' organization.id %}">{{ overdue_actions }} overdue action{{ overdue_actions|pluralize }}</a>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <div class="section-head">
-        <div>
-            <h2>Workspace Modules</h2>
-            <p class="muted">
-                Quickly access important areas of the organization.
-            </p>
-        </div>
+        <h2>Projects</h2>
     </div>
 
-    <div class="module-grid">
-
-        <a class="module-card" href="{% url 'organization_projects' organization.id %}">
-            <div class="module-icon">📁</div>
-            <strong>Projects</strong>
-            <span>Projects, teams and actions</span>
-        </a>
-
-        <a class="module-card" href="{% url 'employee_list' organization.id %}">
-            <div class="module-icon">👥</div>
-            <strong>Employees</strong>
-            <span>Employee records and profiles</span>
-        </a>
-
-        <a class="module-card" href="{% url 'attendance_list' organization.id %}">
-            <div class="module-icon">🕒</div>
-            <strong>Attendance</strong>
-            <span>Daily attendance tracking</span>
-        </a>
-
-        <a class="module-card" href="{% url 'leave_list' organization.id %}">
-            <div class="module-icon">🌴</div>
-            <strong>Leave</strong>
-            <span>Manage leave requests</span>
-        </a>
-
-        <a class="module-card" href="{% url 'payroll' organization.id %}">
-            <div class="module-icon">₹</div>
-            <strong>Payroll</strong>
-            <span>Salaries and deductions</span>
-        </a>
-
-    </div>
-
-    <div class="section-head" style="margin-top:12px;">
-        <div>
-            <h2>Projects</h2>
-            <p class="muted">
-                Open a project dashboard to manage team members and actions.
-            </p>
-        </div>
-    </div>
-
-    {% if projects %}
-
+    {% if project_cards %}
     <div class="project-grid">
+        {% for c in project_cards %}
+        <a class="project-card" href="{% url 'project_dashboard' c.project.id %}">
 
-        {% for project in projects %}
-
-        <a
-            class="project-card"
-            href="{% url 'project_dashboard' project.id %}"
-        >
-
-            <div class="project-top">
-                <span class="project-badge">Project</span>
+            <div class="project-head">
+                <h3>{{ c.project.name }}</h3>
+                <div class="avatars">
+                    {% for a in c.avatars %}<span class="avatar">{{ a }}</span>{% endfor %}
+                    {% if c.extra %}<span class="avatar more">+{{ c.extra }}</span>{% endif %}
+                </div>
             </div>
 
-            <h3>{{ project.name }}</h3>
+            <div class="today-line">
+                <span><strong>{{ c.present_today }}</strong> / {{ c.working_today }} present today</span>
+                {% if c.away_names %}
+                <span class="away">Away: {{ c.away_names|join:", " }}{% if c.away_extra %} +{{ c.away_extra }}{% endif %}</span>
+                {% endif %}
+            </div>
 
-            <p>
-                {{ project.description|default:"No description available."|truncatechars:100 }}
-            </p>
+            <div class="metric">
+                <div class="metric-row">
+                    <span>Attendance ({{ month_label }})</span>
+                    <strong class="{{ c.att_tone }}">{% if c.att_pct is not None %}{{ c.att_pct }}%{% else %}—{% endif %}</strong>
+                </div>
+                <div class="meter"><span class="{{ c.att_tone }}" style="width: {{ c.att_pct|default:0 }}%;"></span></div>
+            </div>
+
+            <div class="metric">
+                <div class="metric-row">
+                    <span>Payroll confirmed</span>
+                    <strong>{{ c.confirmed }} / {{ c.team_count }}</strong>
+                </div>
+                <div class="meter"><span style="width: {{ c.payroll_pct }}%;"></span></div>
+                {% if c.payroll_cost is not None %}
+                <div class="metric-row">
+                    <span>Monthly base cost</span>
+                    <span class="cost">₹{{ c.payroll_cost|floatformat:"0g" }}</span>
+                </div>
+                {% endif %}
+            </div>
 
             <div class="project-footer">
+                <span>{{ c.team_count }} team member{{ c.team_count|pluralize }}</span>
                 <span>
-                    👥 {{ project.employees.count }} Team
-                </span>
-
-                <span>
-                    📋 {{ project.actions.count }} Actions
+                    {{ c.open_actions }} open
+                    {% if c.next_due %}·
+                    <span class="{% if c.next_due_overdue %}overdue{% endif %}">next due {{ c.next_due|date:"d M" }}</span>
+                    {% endif %}
                 </span>
             </div>
 
         </a>
-
         {% endfor %}
-
     </div>
 
     {% else %}
-
     <div class="empty-state">
-
-        <div class="empty-icon">📁</div>
-
         <h3>No Projects Yet</h3>
-
-        <p>
-            Create your first project to start managing work.
-        </p>
-
-        <a
-            class="btn btn-primary"
-            href="{% url 'project_create' organization.id %}"
-        >
-            Create Project
-        </a>
-
+        <p>Create your first project to start managing work.</p>
+        <a class="btn btn-primary" href="{% url 'project_create' organization.id %}">Create Project</a>
     </div>
-
     {% endif %}
 
 </div>

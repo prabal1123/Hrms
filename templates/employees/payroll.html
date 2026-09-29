@@ -290,7 +290,8 @@
         <input type="hidden" name="action" value="save_month_records">
         <input type="hidden" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
         <input type="hidden" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
-        <input type="hidden" name="month" value="{{ selected_month_str }}">
+                <input type="hidden" name="month" value="{{ selected_month_str }}">
+        <input type="hidden" name="project_id" value="{{ selected_project_id|default:'' }}">
         <button type="submit" class="btn btn-primary" onclick="return confirm('Lock and save payroll records for this period ({{ start_date|date:'d M' }} - {{ end_date|date:'d M, Y' }})?');">
             Lock &amp; Save Cycle Records
         </button>
@@ -314,6 +315,18 @@
         <div class="filter-group">
             <label for="monthPicker">Reference Month:</label>
             <input type="month" id="monthPicker" name="month" value="{{ selected_month_str }}">
+        </div>
+
+                <div class="filter-group" style="min-width: 200px;">
+            <label for="projectPicker">Project:</label>
+            <select id="projectPicker" name="project_id">
+                <option value="">All Projects</option>
+                {% for project in projects %}
+                    <option value="{{ project.id }}" {% if selected_project_id == project.id|stringformat:"s" %}selected{% endif %}>
+                        {{ project.name }}
+                    </option>
+                {% endfor %}
+            </select>
         </div>
 
         <div class="filter-group" style="min-width: 220px;">

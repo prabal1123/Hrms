@@ -39,7 +39,6 @@
         .mobile-nav-toggle {
           display: flex;
         }
-        /* Extra left padding on mobile so top-left button never overlaps page titles */
         .content-area {
           padding-top: 56px !important;
         }
@@ -67,7 +66,6 @@
 
 {% if user.is_authenticated %}
 
-<!-- Mobile Hamburger Floating Button & Backdrop -->
 <div class="mobile-backdrop" id="sidebarBackdrop" onclick="toggleSidebarMobile()"></div>
 <button type="button" class="mobile-nav-toggle" onclick="toggleSidebarMobile()" aria-label="Toggle navigation">
     ☰
@@ -177,6 +175,22 @@
                         href="{% url 'employee_list' current_org.id %}"
                     >
                         <span>♙</span> Employees
+                    </a>
+                {% endif %}
+
+                {% if current_membership and current_membership.role == 'owner' or current_membership and current_membership.role == 'admin' %}
+                    <a
+                        class="nav-item {% if request.resolver_match.url_name == 'employee_import' or request.resolver_match.url_name == 'employee_import_problems' %}active{% endif %}"
+                        href="{% url 'employee_import' current_org.id %}"
+                    >
+                        <span>⇪</span> Import Employees
+                    </a>
+
+                    <a
+                        class="nav-item {% if request.resolver_match.url_name == 'employee_assign_projects' %}active{% endif %}"
+                        href="{% url 'employee_assign_projects' current_org.id %}"
+                    >
+                        <span>▤</span> Assign Projects
                     </a>
                 {% endif %}
 

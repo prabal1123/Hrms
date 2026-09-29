@@ -11,7 +11,7 @@ class LeaveWorkflowTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user(username="admin", password="password123")
         self.worker = User.objects.create_user(username="worker", password="password123")
-        self.org = Organization.objects.create(name="Logistics Ltd")
+        self.org = Organization.objects.create(name="Logistics Ltd", created_by=self.admin)
 
         OrganizationMember.objects.create(organization=self.org, user=self.admin, role="admin")
         OrganizationMember.objects.create(organization=self.org, user=self.worker, role="member")

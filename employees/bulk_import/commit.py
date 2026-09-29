@@ -49,7 +49,7 @@ def _conflict(data, index):
     return None
 
 
-def commit_rows(payload_rows, organization, marked_by):
+def commit_rows(payload_rows, organization, marked_by, project_id=None):
     result = CommitResult()
     index = OrganizationIndex(organization)
     items = {item.id: item for item in ChecklistItem.objects.filter(organization=organization)}
@@ -68,7 +68,7 @@ def commit_rows(payload_rows, organization, marked_by):
                 message = _conflict(data, index)
                 if message:
                     raise RowFailed(message)
-                employee = Employee(organization=organization, **data)
+                employee = Employee(organization=organization, project_id=project_id, **data)
                 employee.save()
                 # Same person already has a login (another organization)? Reuse it.
                 if find_existing_login(data["email"]) is not None:

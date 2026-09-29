@@ -2,6 +2,7 @@ from django import forms
 from django.db import transaction
 from django.db.models import Q
 from organizations.models import OrganizationMember
+from projects.models import Project
 from .bulk_import import MAX_UPLOAD_BYTES
 from .models import Employee, Attendance, Leave
 
@@ -114,6 +115,7 @@ SUPERVISOR_ROLES = ("manager", "admin", "owner")
 ADMIN_ONLY_FIELDS = [
     "access_group",
     "supervisor",
+    "project",
     "salary",
     "pf",
     "esi",
@@ -140,6 +142,7 @@ class EmployeeForm(forms.ModelForm):
             "date_joined",
             "weekly_off",
             "supervisor",
+            "project",
             "is_active",
             # Identity & Statutory
             "aadhar_no",
@@ -173,6 +176,10 @@ class EmployeeForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self._membership = None
 
+        # Ensure a new (or reassigned) instance always has its organization set,
+        # regardless of which branch below we take.
+        if organization is not None:
+            self.instance.organization = organization
         # Make financial and deduction fields optional so empty submissions default cleanly
         for field_name in ("salary", "pf", "esi", "other_deductions", "phone", "designation", "bank_name", "ifsc_no"):
             if field_name in self.fields:
@@ -186,6 +193,7 @@ class EmployeeForm(forms.ModelForm):
 
         org_id = organization.id if organization else self.instance.organization_id
         self._setup_supervisor_field(org_id)
+        self._setup_project_field(org_id)
 
         # Access group only exists when editing an existing employee with a user profile
         if self.instance.pk is None:
@@ -246,6 +254,20 @@ class EmployeeForm(forms.ModelForm):
         if self.instance.pk:
             queryset = queryset.exclude(pk=self.instance.pk)
         field.queryset = queryset.distinct()
+
+    def _setup_project_field(self, org_id):
+        field = self.fields.get("project")
+        if not field:
+            return
+
+        field.empty_label = "— NA —"
+        field.required = False
+
+        if org_id is None:
+            field.queryset = Project.objects.none()
+            return
+
+        field.queryset = Project.objects.filter(organization_id=org_id).order_by("name")
 
     def clean(self):
         cleaned = super().clean()

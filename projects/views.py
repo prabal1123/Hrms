@@ -29,9 +29,9 @@ def organization_projects(request, org_id):
             user=request.user,
         ).first()
 
-        if employee:
-            projects = employee.projects.filter(
-                organization=organization
+        if employee.project_id:
+            projects = Project.objects.filter(
+                pk=employee.project_id, organization=organization
             ).order_by("-created_at")
         else:
             projects = Project.objects.none()
@@ -68,7 +68,7 @@ def project_dashboard(request, pk):
     request.current_org = project.organization
 
     membership = get_user_membership(request.user, project.organization)
-    team = project.employees.filter(is_active=True)
+    team = project.team_members.filter(is_active=True)
 
     # Owner/admin/manager: full management view, unchanged from before.
     if membership and membership.role in ["owner", "admin", "manager"]:
@@ -119,7 +119,8 @@ def project_team(request, pk):
         messages.error(request, "Access restricted to management.")
         return redirect("project_dashboard", pk=project.id)
 
-    team_members = project.employees.filter(is_active=True)
+    # team_members = project.employees.filter(is_active=True)
+    team_members = project.team_members.filter(is_active=True)
     return render(request, "projects/team.html", {
         "project": project,
         "current_project": project,

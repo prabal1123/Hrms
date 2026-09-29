@@ -11,7 +11,7 @@ User = get_user_model()
 class EmployeeCRUDTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="admin_user", password="password123")
-        self.org = Organization.objects.create(name="Acme Corp")
+        self.org = Organization.objects.create(name="Acme Corp", created_by=self.user)
         self.membership = OrganizationMember.objects.create(
             organization=self.org,
             user=self.user,
@@ -19,20 +19,25 @@ class EmployeeCRUDTests(TestCase):
         )
 
     def test_auto_generated_employee_id(self):
+        # setUp() creates an admin OrganizationMember, which auto-creates its
+        # own Employee row (see OrganizationMember.save()). So employee_id
+        # numbering here starts after that auto-created record, not at 0001.
+        starting_count = Employee.objects.filter(organization=self.org).count()
+
         emp1 = Employee.objects.create(
             organization=self.org,
             first_name="John",
             last_name="Doe",
         )
         self.assertTrue(emp1.employee_id.startswith(f"acm-{self.org.id}-"))
-        self.assertTrue(emp1.employee_id.endswith("0001"))
+        self.assertTrue(emp1.employee_id.endswith(f"{starting_count + 1:04d}"))
 
         emp2 = Employee.objects.create(
             organization=self.org,
             first_name="Jane",
             last_name="Smith",
         )
-        self.assertTrue(emp2.employee_id.endswith("0002"))
+        self.assertTrue(emp2.employee_id.endswith(f"{starting_count + 2:04d}"))
 
     def test_employee_form_saves_financial_fields(self):
         form_data = {
@@ -45,6 +50,7 @@ class EmployeeCRUDTests(TestCase):
             "esi": "500.00",
             "other_deductions": "200.00",
             "is_active": True,
+            "weekly_off": "6",
         }
         form = EmployeeForm(
             data=form_data,

@@ -156,7 +156,7 @@ class SensitivePermissionTests(TestCase):
 
 
 class DetailPageTests(TestCase):
-    CARD = "Identity &amp; bank details"
+    CARD = "Identity &amp; Bank Details"
 
     def setUp(self):
         self.owner = User.objects.create_user("owner", password="pw-owner-123")
