@@ -51,6 +51,7 @@ ALLOWED_HOSTS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
+    "https://lite.numa-hr.com",
     "http://18.61.200.14:8082",
     "http://172.31.6.187:8082",
     "http://localhost:8082",
